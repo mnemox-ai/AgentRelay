@@ -6,8 +6,8 @@ interface PageShellProps {
 
 export function PageShell({ title, description, children }: PageShellProps) {
   return (
-    <main className="ml-56 min-h-screen bg-[var(--bg)]">
-      <div className="mx-auto max-w-6xl px-8 py-10">
+    <main className="min-h-screen bg-[var(--bg)] pt-14 md:pt-0 md:ml-56">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-10">
         <div className="mb-12">
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
             {title}
