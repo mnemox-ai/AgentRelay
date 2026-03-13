@@ -6,14 +6,14 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class TaskCreate(BaseModel):
     task_spec: dict[str, Any]
     publisher_id: uuid.UUID
     reward: float = 0.0
-    deadline_seconds: int | None = None
+    deadline_seconds: int | None = Field(None, ge=1)
 
 
 class TaskClaimRequest(BaseModel):

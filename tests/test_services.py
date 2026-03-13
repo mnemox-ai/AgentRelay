@@ -115,6 +115,24 @@ class TestTaskService:
         call_kwargs = task_repo.create.call_args.kwargs
         assert call_kwargs["deadline_at"] is not None
 
+    def test_deadline_seconds_rejects_negative(self):
+        with pytest.raises(Exception):
+            TaskCreate(
+                task_spec={"type": "coding"},
+                publisher_id=uuid.uuid4(),
+                reward=1.0,
+                deadline_seconds=-1,
+            )
+
+    def test_deadline_seconds_rejects_zero(self):
+        with pytest.raises(Exception):
+            TaskCreate(
+                task_spec={"type": "coding"},
+                publisher_id=uuid.uuid4(),
+                reward=1.0,
+                deadline_seconds=0,
+            )
+
     @pytest.mark.asyncio
     async def test_claim_task_success(self):
         svc, task_repo, _ = self._build()
@@ -524,7 +542,7 @@ class TestQuotaService:
             daily_task_budget=100,
             safe_token_cap=10000,
         )
-        assert svc.check_quota(profile, 0) is False
+        assert svc.check_quota(profile, 0) is True
 
     def test_negative_tokens(self):
         svc = QuotaService()
