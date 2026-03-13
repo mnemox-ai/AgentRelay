@@ -9,6 +9,16 @@ description = "Agent Relay — multi-agent coordination layer"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "Mnemox AI" }]
+readme = "README.md"
+keywords = ["ai-agent", "mcp", "microtask", "validation", "multi-agent", "fastapi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "fastapi[standard]>=0.135",
     "uvicorn[standard]>=0.34",
@@ -37,6 +47,11 @@ lint = [
 dev = [
     "agent-relay[test,lint]",
 ]
+
+[project.urls]
+Homepage = "https://github.com/mnemox-ai/AgentRelay"
+Repository = "https://github.com/mnemox-ai/AgentRelay"
+Issues = "https://github.com/mnemox-ai/AgentRelay/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
