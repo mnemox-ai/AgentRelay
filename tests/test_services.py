@@ -250,51 +250,58 @@ class TestTaskService:
 # ---------------------------------------------------------------------------
 
 class TestValidationService:
-    def test_valid_submission(self):
+    def _make_sub_task(self, output_data, output_schema, validation_method="schema+rule"):
+        sub = MagicMock()
+        sub.id = uuid.uuid4()
+        sub.output_data = output_data
+        task = MagicMock()
+        task.task_spec = {
+            "output_schema": output_schema,
+            "validation_method": validation_method,
+            "input_data": {},
+        }
+        return sub, task
+
+    @pytest.mark.asyncio
+    async def test_valid_submission(self):
         svc = ValidationService()
         schema = {
             "type": "object",
             "required": ["name"],
             "properties": {"name": {"type": "string"}},
         }
-        result = svc.validate_submission(
-            input_data={},
-            output_data={"name": "Alice"},
-            output_schema=schema,
-        )
+        sub, task = self._make_sub_task({"name": "Alice"}, schema)
+        result = await svc.validate_submission(sub, task)
         assert result.passed is True
         assert result.errors == []
 
-    def test_schema_validation_fails(self):
+    @pytest.mark.asyncio
+    async def test_schema_validation_fails(self):
         svc = ValidationService()
         schema = {
             "type": "object",
             "required": ["name"],
             "properties": {"name": {"type": "string"}},
         }
-        result = svc.validate_submission(
-            input_data={},
-            output_data={"name": 123},
-            output_schema=schema,
-        )
+        sub, task = self._make_sub_task({"name": 123}, schema)
+        result = await svc.validate_submission(sub, task)
         assert result.passed is False
         assert len(result.errors) > 0
 
-    def test_rule_validation_fails_empty_value(self):
+    @pytest.mark.asyncio
+    async def test_rule_validation_fails_empty_value(self):
         svc = ValidationService()
         schema = {
             "type": "object",
             "required": ["name"],
             "properties": {"name": {"type": "string"}},
         }
-        result = svc.validate_submission(
-            input_data={},
-            output_data={"name": ""},
-            output_schema=schema,
-        )
+        sub, task = self._make_sub_task({"name": ""}, schema)
+        result = await svc.validate_submission(sub, task)
         assert result.passed is False
 
-    def test_missing_required_field(self):
+    @pytest.mark.asyncio
+    async def test_missing_required_field(self):
         svc = ValidationService()
         schema = {
             "type": "object",
@@ -304,14 +311,12 @@ class TestValidationService:
                 "age": {"type": "integer"},
             },
         }
-        result = svc.validate_submission(
-            input_data={},
-            output_data={"name": "Alice"},
-            output_schema=schema,
-        )
+        sub, task = self._make_sub_task({"name": "Alice"}, schema)
+        result = await svc.validate_submission(sub, task)
         assert result.passed is False
 
-    def test_schema_fails_short_circuits(self):
+    @pytest.mark.asyncio
+    async def test_schema_fails_short_circuits(self):
         """When schema validation fails, rule validation is skipped."""
         svc = ValidationService()
         schema = {
@@ -319,11 +324,8 @@ class TestValidationService:
             "required": ["x"],
             "properties": {"x": {"type": "integer"}},
         }
-        result = svc.validate_submission(
-            input_data={},
-            output_data={"x": "not_int"},
-            output_schema=schema,
-        )
+        sub, task = self._make_sub_task({"x": "not_int"}, schema)
+        result = await svc.validate_submission(sub, task)
         assert result.passed is False
         # Errors should only be from schema validator
         assert any("integer" in e for e in result.errors)

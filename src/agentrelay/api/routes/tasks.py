@@ -17,6 +17,7 @@ from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
 from agentrelay.security.token_limiter import check_token_budget
 from agentrelay.services.task_service import TaskService
+from agentrelay.services.validation_service import ValidationService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -90,8 +91,22 @@ async def submit_task(
     db: AsyncSession = Depends(get_db),
 ):
     svc = _task_service(db)
+    task_repo = TaskRepository(db)
     try:
         submission = await svc.submit_task(body)
+
+        # Transition to validating
+        task = await task_repo.get(body.task_id)
+        await task_repo.update_status(body.task_id, "validating")
+
+        # Run automated validation pipeline
+        validation_svc = ValidationService(session=db)
+        result = await validation_svc.validate_submission(submission, task)
+
+        # Update task status based on validation outcome
+        final_status = "completed" if result.passed else "failed"
+        await task_repo.update_status(body.task_id, final_status)
+
         await db.refresh(submission)
         return submission
     except (ValueError, InvalidTransitionError) as exc:
