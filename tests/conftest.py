@@ -78,3 +78,10 @@ async def client():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture
+async def db_session():
+    """Provide a DB session for verifying side effects in integration tests."""
+    async with TestSessionFactory() as session:
+        yield session

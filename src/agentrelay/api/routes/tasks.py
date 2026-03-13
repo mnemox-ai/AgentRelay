@@ -15,6 +15,9 @@ from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
+from agentrelay.security.task_sanitizer import scan_input
+from agentrelay.security.output_sanitizer import scan_output
+from agentrelay.security.task_sanitizer import ThreatLevel
 from agentrelay.security.token_limiter import check_token_budget
 from agentrelay.repositories.ledger_repo import LedgerRepository
 from agentrelay.repositories.reputation_repo import ReputationRepository
@@ -27,6 +30,23 @@ from agentrelay.services.validation_service import ValidationService
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
+def _collect_strings(obj: object) -> list[str]:
+    """Recursively collect all string values from a nested structure."""
+    if isinstance(obj, str):
+        return [obj]
+    if isinstance(obj, dict):
+        parts: list[str] = []
+        for v in obj.values():
+            parts.extend(_collect_strings(v))
+        return parts
+    if isinstance(obj, (list, tuple)):
+        parts = []
+        for item in obj:
+            parts.extend(_collect_strings(item))
+        return parts
+    return []
+
+
 def _task_service(db: AsyncSession) -> TaskService:
     return TaskService(TaskRepository(db), SubmissionRepository(db))
 
@@ -37,6 +57,16 @@ async def create_task(
     _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
+    # Scan task_spec for prompt injection
+    text_to_scan = " ".join(_collect_strings(body.task_spec))
+    if text_to_scan.strip():
+        scan_result = scan_input(text_to_scan)
+        if not scan_result.clean:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Task input blocked by security scanner: {scan_result.flagged_patterns}",
+            )
+
     svc = _task_service(db)
     task = await svc.create_task(body)
     return task
@@ -95,6 +125,16 @@ async def submit_task(
     _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
+    # Scan output_data for malicious content
+    text_to_scan = " ".join(_collect_strings(body.output_data))
+    if text_to_scan.strip():
+        scan_result = scan_output(text_to_scan)
+        if not scan_result.clean:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Output blocked by security scanner: {scan_result.flagged_patterns}",
+            )
+
     svc = _task_service(db)
     task_repo = TaskRepository(db)
     try:

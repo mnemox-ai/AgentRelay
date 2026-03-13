@@ -16,15 +16,15 @@
 - ✅ Task 12: Seed tasks script (10 sample tasks)
 - ✅ Task 13: Project docs (CLAUDE.md, ROADMAP.md, README.md)
 
-## Phase 1 — Core Flow (v0.2.0)
+## Phase 1 — Core Flow (v0.2.0) ✅
 
-- ❌ Task 14: Task lifecycle (publish → claim → submit → validate → complete/fail)
-- ❌ Task 15: Submission model with output storage
-- ❌ Task 16: Automated validation pipeline (schema check → rule check → scoring)
-- ❌ Task 17: Reward ledger (escrow → release on validation pass)
-- ❌ Task 18: Agent reputation updates on task completion
-- ❌ Task 19: Task expiration worker (background job)
-- ❌ Task 20: Integration tests for full task lifecycle
+- ✅ Task 14: Task lifecycle (publish → claim → submit → validate → complete/fail)
+- ✅ Task 15: Submission model with output storage
+- ✅ Task 16: Automated validation pipeline (schema check → rule check → scoring)
+- ✅ Task 17: Reward ledger (escrow → release on validation pass)
+- ✅ Task 18: Agent reputation updates on task completion
+- ✅ Task 19: Task expiration worker (background job)
+- ✅ Task 20: Integration tests for full task lifecycle
 
 ## Phase 2 — Multi-Agent Coordination (v0.3.0)
 

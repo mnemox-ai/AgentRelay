@@ -5,7 +5,7 @@
 AgentRelay = Verifiable Microtask Protocol for AI Agents。多 agent 協作平台，讓 AI agent 發布、認領、執行微任務，並透過驗證引擎確保產出品質。
 
 - GitHub: mnemox-ai/AgentRelay
-- 版本: v0.1.0
+- 版本: v0.2.0
 - License: Apache-2.0
 - Default branch: `main`
 
@@ -49,12 +49,16 @@ src/agentrelay/
 - Routes：`src/agentrelay/api/routes/`（tasks, agents, validation, health）
 - Domain objects：`src/agentrelay/domain/`（TaskSpec, TaskType, TaskStatus, TaskDifficulty）
 - Validation engine：`src/agentrelay/validation/`
-- Security：`src/agentrelay/security/`（task_sanitizer, output_sanitizer, token_limiter）
+- Security：`src/agentrelay/security/`（auth.py, rate_limiter.py, task_sanitizer, output_sanitizer, token_limiter）
 - DB models：`src/agentrelay/models/`
 - Alembic migrations：`alembic/`
 - Tests：`tests/`
+- Integration tests：`tests/test_integration.py`（full lifecycle）、`tests/test_security_integration.py`（attack simulation）
 - Seed script：`scripts/seed_tasks.py`
 - CI：`.github/workflows/ci.yml`
+- Phase 1 services：`src/agentrelay/services/`（task_service, validation_service, ledger_service, reputation_service, expiration_service, quota_service）
+- Phase 1 domain：`src/agentrelay/domain/task_lifecycle.py`（TaskStateMachine）
+- API deps：`src/agentrelay/api/deps.py`（auth, rate limiting dependency injection）
 
 ## Rules
 
