@@ -21,6 +21,7 @@ dependencies = [
     "httpx>=0.28",
     "jsonschema>=4.23",
     "redis[hiredis]>=5.0",
+    "fastmcp>=3.0",
 ]
 
 [project.optional-dependencies]
