@@ -14,7 +14,7 @@ from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
-from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
+from agentrelay.schemas.task import TaskBatchCreate, TaskClaimRequest, TaskCreate, TaskResponse
 from agentrelay.security.task_sanitizer import scan_input
 from agentrelay.security.output_sanitizer import scan_output
 from agentrelay.repositories.ledger_repo import LedgerRepository
@@ -26,6 +26,8 @@ from agentrelay.services.quota_service import QuotaExceededError, QuotaService
 from agentrelay.services.expiration_service import expire_overdue_tasks
 from agentrelay.services.notification_service import notification_service
 from agentrelay.services.validation_service import ValidationService
+from agentrelay.services.queue_service import QueueService, get_redis, QUEUE_KEY
+from agentrelay.config import settings
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -74,6 +76,58 @@ async def create_task(
     return task
 
 
+@router.post("/batch", response_model=list[TaskResponse], status_code=201)
+async def create_tasks_batch(
+    body: TaskBatchCreate,
+    _agent: Agent = Depends(rate_limit_by_agent),
+    db: AsyncSession = Depends(get_db),
+):
+    if len(body.tasks) > settings.BATCH_MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Batch size exceeds maximum of {settings.BATCH_MAX_SIZE}",
+        )
+
+    # Scan all task specs for prompt injection
+    for item in body.tasks:
+        text_to_scan = " ".join(_collect_strings(item.task_spec))
+        if text_to_scan.strip():
+            scan_result = scan_input(text_to_scan)
+            if not scan_result.clean:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Task input blocked by security scanner: {scan_result.flagged_patterns}",
+                )
+
+    svc = _task_service(db)
+    tasks = await svc.create_tasks_batch(body.tasks)
+
+    # Enqueue into Redis priority queue (best-effort)
+    try:
+        redis_client = await get_redis()
+        try:
+            queue_svc = QueueService(redis_client)
+            queue_items = []
+            for task in tasks:
+                token_estimate = (task.task_spec or {}).get("token_estimate", 0)
+                queue_items.append({
+                    "task_id": task.id,
+                    "reward": task.reward,
+                    "token_estimate": token_estimate,
+                    "deadline_at": task.deadline_at,
+                })
+            await queue_svc.enqueue_batch(queue_items)
+        finally:
+            await redis_client.aclose()
+    except Exception:
+        pass  # Redis unavailable — tasks are still in DB
+
+    for task in tasks:
+        await notification_service.broadcast("task_created", {"task_id": str(task.id), "status": task.status})
+
+    return tasks
+
+
 @router.get("/available", response_model=list[TaskResponse], dependencies=[Depends(rate_limit_by_ip)])
 async def list_available_tasks(
     limit: int = 50,
@@ -86,6 +140,27 @@ async def list_available_tasks(
             return await svc.match_tasks_for_agent(agent_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc))
+
+    # Try Redis priority queue first, fallback to DB
+    try:
+        redis_client = await get_redis()
+        try:
+            queue_svc = QueueService(redis_client)
+            task_ids = await queue_svc.top_n(limit)
+            if task_ids:
+                repo = TaskRepository(db)
+                tasks = []
+                for tid in task_ids:
+                    task = await repo.get(uuid.UUID(tid))
+                    if task is not None and task.status == "open":
+                        tasks.append(task)
+                if tasks:
+                    return tasks
+        finally:
+            await redis_client.aclose()
+    except Exception:
+        pass  # Redis unavailable — fallback to DB
+
     svc = _task_service(db)
     return await svc.get_available_tasks(limit=limit)
 

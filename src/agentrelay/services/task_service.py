@@ -40,6 +40,13 @@ class TaskService:
             deadline_at=deadline_at,
         )
 
+    async def create_tasks_batch(self, items: list[TaskCreate]) -> list[Task]:
+        tasks: list[Task] = []
+        for data in items:
+            task = await self.create_task(data)
+            tasks.append(task)
+        return tasks
+
     async def claim_task(self, task_id: uuid.UUID, agent_id: uuid.UUID) -> Task | None:
         # Double-check with row-level lock to prevent concurrent claims
         task = await self.task_repo.get_for_update(task_id)

@@ -20,6 +20,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "httpx>=0.28",
     "jsonschema>=4.23",
+    "redis[hiredis]>=5.0",
 ]
 
 [project.optional-dependencies]

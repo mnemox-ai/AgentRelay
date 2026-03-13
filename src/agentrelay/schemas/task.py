@@ -16,6 +16,10 @@ class TaskCreate(BaseModel):
     deadline_seconds: int | None = Field(None, ge=1)
 
 
+class TaskBatchCreate(BaseModel):
+    tasks: list[TaskCreate] = Field(..., min_length=1, max_length=100)
+
+
 class TaskClaimRequest(BaseModel):
     agent_id: uuid.UUID
 

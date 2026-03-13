@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = ""
     RATE_LIMIT_MAX_REQUESTS: int = 60
     RATE_LIMIT_WINDOW_SECONDS: int = 60
+    REDIS_URL: str = "redis://localhost:6379/0"
+    BATCH_MAX_SIZE: int = 100
 
 
 settings = Settings()
