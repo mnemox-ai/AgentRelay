@@ -16,6 +16,10 @@ from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
 from agentrelay.security.token_limiter import check_token_budget
+from agentrelay.repositories.ledger_repo import LedgerRepository
+from agentrelay.repositories.reputation_repo import ReputationRepository
+from agentrelay.services.ledger_service import LedgerService
+from agentrelay.services.reputation_service import ReputationService
 from agentrelay.services.task_service import TaskService
 from agentrelay.services.validation_service import ValidationService
 
@@ -106,6 +110,17 @@ async def submit_task(
         # Update task status based on validation outcome
         final_status = "completed" if result.passed else "failed"
         await task_repo.update_status(body.task_id, final_status)
+
+        # Post-validation: ledger + reputation updates
+        ledger_svc = LedgerService(LedgerRepository(db))
+        reputation_svc = ReputationService(ReputationRepository(db))
+
+        if result.passed:
+            await ledger_svc.record_reward(body.agent_id, body.task_id, task.reward)
+        else:
+            await ledger_svc.record_penalty(body.agent_id, body.task_id, task.reward)
+
+        await reputation_svc.update_reputation(body.agent_id, result)
 
         await db.refresh(submission)
         return submission

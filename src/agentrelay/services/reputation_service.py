@@ -34,7 +34,18 @@ class ReputationService:
         passed = prev.get("passed", 0) + (1 if validation_result.passed else 0)
         failed = prev.get("failed", 0) + (0 if validation_result.passed else 1)
         pass_rate = passed / total if total > 0 else 0.0
-        quality_score = pass_rate * 100.0
+
+        # Quality score: weighted moving average using validation score (0-1 → 0-100)
+        prev_quality = prev.get("quality_score", 0.0)
+        prev_total = prev.get("total_submissions", 0)
+        new_score = validation_result.score * 100.0
+        if prev_total > 0:
+            quality_score = (prev_quality * prev_total + new_score) / total
+        else:
+            quality_score = new_score
+
+        # Rework rate: proportion of failed submissions
+        rework_rate = failed / total if total > 0 else 0.0
 
         metrics = {
             "total_submissions": total,
@@ -42,6 +53,7 @@ class ReputationService:
             "failed": failed,
             "pass_rate": round(pass_rate, 4),
             "quality_score": round(quality_score, 2),
+            "rework_rate": round(rework_rate, 4),
         }
 
         return await self.reputation_repo.create_snapshot(
