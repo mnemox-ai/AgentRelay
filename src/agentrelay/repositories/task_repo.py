@@ -22,6 +22,21 @@ class TaskRepository:
         await self.session.flush()
         return task
 
+    async def create_batch(self, items: list[dict]) -> list[Task]:
+        """Create multiple tasks in a single flush."""
+        tasks = [Task(**kwargs) for kwargs in items]
+        self.session.add_all(tasks)
+        await self.session.flush()
+        return tasks
+
+    async def list_open_by_ids(self, task_ids: list[uuid.UUID]) -> list[Task]:
+        """Fetch open tasks by IDs in a single query."""
+        if not task_ids:
+            return []
+        stmt = select(Task).where(Task.id.in_(task_ids), Task.status == "open")
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get(self, task_id: uuid.UUID) -> Task | None:
         return await self.session.get(Task, task_id)
 

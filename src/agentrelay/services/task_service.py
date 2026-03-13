@@ -59,11 +59,18 @@ class TaskService:
         )
 
     async def create_tasks_batch(self, items: list[TaskCreate]) -> list[Task]:
-        tasks: list[Task] = []
-        for data in items:
-            task = await self.create_task(data)
-            tasks.append(task)
-        return tasks
+        return await self.task_repo.create_batch([
+            dict(
+                task_spec=data.task_spec,
+                publisher_id=data.publisher_id,
+                reward=data.reward,
+                deadline_at=(
+                    datetime.now(timezone.utc) + timedelta(seconds=data.deadline_seconds)
+                    if data.deadline_seconds is not None else None
+                ),
+            )
+            for data in items
+        ])
 
     async def claim_task(self, task_id: uuid.UUID, agent_id: uuid.UUID) -> Task | None:
         # Double-check with row-level lock to prevent concurrent claims
@@ -79,12 +86,7 @@ class TaskService:
 
     async def get_open_tasks_by_ids(self, task_ids: list[uuid.UUID]) -> list[Task]:
         """Fetch tasks by IDs, returning only those with open status."""
-        tasks = []
-        for tid in task_ids:
-            task = await self.task_repo.get(tid)
-            if task is not None and task.status == TaskStatus.OPEN.value:
-                tasks.append(task)
-        return tasks
+        return await self.task_repo.list_open_by_ids(task_ids)
 
     async def get_available_tasks(self, limit: int = 50) -> list[Task]:
         return await self.task_repo.list_available(limit=limit)

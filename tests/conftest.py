@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.pool import StaticPool
 
 from agentrelay.models.base import Base
 from agentrelay.api.app import app
@@ -31,12 +33,16 @@ def _compile_uuid_sqlite(type_, compiler, **kw):
 
 
 # --------------------------------------------------------------------------
-# Test engine & session
+# Test engine & session — StaticPool forces a single connection for SQLite
 # --------------------------------------------------------------------------
 
 TEST_DATABASE_URL = "sqlite+aiosqlite://"
 
-engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    poolclass=StaticPool,
+)
 TestSessionFactory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -71,6 +77,21 @@ def _override_rate_limiter() -> RateLimiter:
 
 
 app.dependency_overrides[get_rate_limiter] = _override_rate_limiter
+
+
+# --------------------------------------------------------------------------
+# Mock Redis — tests should never touch a real Redis instance
+# --------------------------------------------------------------------------
+
+async def _mock_get_redis():
+    raise ConnectionError("Redis disabled in tests")
+
+
+@pytest.fixture(autouse=True)
+def _disable_redis():
+    """Prevent tests from connecting to a real Redis instance."""
+    with patch("agentrelay.api.routes.tasks.get_redis", _mock_get_redis):
+        yield
 
 
 @pytest.fixture
