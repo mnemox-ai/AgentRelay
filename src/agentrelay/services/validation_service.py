@@ -77,6 +77,7 @@ class ValidationService:
             return
         run = ValidationRun(
             submission_id=submission_id,
+            # ValidatorType enum → string value for DB column (e.g. ValidatorType.SCHEMA → "schema")
             validator_type=result.validator_type.value,
             passed=result.passed,
             score=result.score,

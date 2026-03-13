@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,7 +28,10 @@ from agentrelay.services.expiration_service import expire_overdue_tasks
 from agentrelay.services.notification_service import notification_service
 from agentrelay.services.validation_service import ValidationService
 from agentrelay.services.queue_service import QueueService, get_redis
+from agentrelay.domain.task_spec import TaskStatus
 from agentrelay.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -120,7 +124,7 @@ async def create_tasks_batch(
         finally:
             await redis_client.aclose()
     except Exception:
-        pass  # Redis unavailable — tasks are still in DB
+        logger.warning("Redis unavailable during batch enqueue — tasks are still in DB")
 
     for task in tasks:
         await notification_service.broadcast("task_created", {"task_id": str(task.id), "status": task.status})
@@ -152,14 +156,14 @@ async def list_available_tasks(
                 tasks = []
                 for tid in task_ids:
                     task = await repo.get(uuid.UUID(tid))
-                    if task is not None and task.status == "open":
+                    if task is not None and task.status == TaskStatus.OPEN.value:
                         tasks.append(task)
                 if tasks:
                     return tasks
         finally:
             await redis_client.aclose()
     except Exception:
-        pass  # Redis unavailable — fallback to DB
+        logger.warning("Redis unavailable — falling back to DB for available tasks")
 
     svc = _task_service(db)
     return await svc.get_available_tasks(limit=limit)
@@ -226,14 +230,14 @@ async def submit_task(
 
         # Transition to validating
         task = await task_repo.get(body.task_id)
-        await task_repo.update_status(body.task_id, "validating")
+        await task_repo.update_status(body.task_id, TaskStatus.VALIDATING.value)
 
         # Run automated validation pipeline
         validation_svc = ValidationService(session=db)
         result = await validation_svc.validate_submission(submission, task)
 
         # Update task status based on validation outcome
-        final_status = "completed" if result.passed else "failed"
+        final_status = TaskStatus.COMPLETED.value if result.passed else TaskStatus.FAILED.value
         await task_repo.update_status(body.task_id, final_status)
 
         event_type = "task_completed" if result.passed else "task_failed"

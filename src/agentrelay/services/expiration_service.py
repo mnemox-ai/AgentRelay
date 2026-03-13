@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentrelay.domain.task_lifecycle import TaskStateMachine
+from agentrelay.domain.task_spec import TaskStatus
 from agentrelay.models.task import Task
 from agentrelay.repositories.ledger_repo import LedgerRepository
 from agentrelay.repositories.reputation_repo import ReputationRepository
@@ -33,7 +34,7 @@ async def expire_overdue_tasks(db: AsyncSession) -> list[dict]:
     stmt = (
         select(Task)
         .where(
-            Task.status.in_(["open", "claimed"]),
+            Task.status.in_([TaskStatus.OPEN.value, TaskStatus.CLAIMED.value]),
             Task.deadline_at.isnot(None),
             Task.deadline_at < now,
         )
@@ -50,11 +51,11 @@ async def expire_overdue_tasks(db: AsyncSession) -> list[dict]:
         claimed_agent = task.claimed_by
 
         # Validate transition via state machine
-        TaskStateMachine.transition(previous_status, "expired")
+        TaskStateMachine.transition(previous_status, TaskStatus.EXPIRED.value)
 
         # Update status
         await db.execute(
-            update(Task).where(Task.id == task.id).values(status="expired")
+            update(Task).where(Task.id == task.id).values(status=TaskStatus.EXPIRED.value)
         )
 
         entry = {

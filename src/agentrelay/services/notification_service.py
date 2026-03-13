@@ -41,7 +41,7 @@ class NotificationService:
                     await ws.send_text(message)
                     alive.append(ws)
                 except Exception:
-                    logger.debug("Dropping dead WebSocket connection")
+                    logger.warning("Dropping dead WebSocket connection")
             self._connections = alive
 
 

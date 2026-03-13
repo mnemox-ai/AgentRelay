@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import base64
+import logging
 import re
 
 from .task_sanitizer import SanitizeResult, ThreatLevel
+
+logger = logging.getLogger(__name__)
 
 # --- Dangerous shell command patterns ---
 
@@ -57,6 +60,7 @@ def _has_suspicious_base64(text: str) -> bool:
         try:
             decoded = base64.b64decode(candidate, validate=True).decode("utf-8", errors="ignore")
         except Exception:
+            logger.warning("Failed to decode base64 candidate: %s...", candidate[:20])
             continue
         # Check if decoded content looks like a command or script
         if any(kw in decoded.lower() for kw in ("rm ", "del ", "exec", "<script", "import os", "subprocess", "eval(")):

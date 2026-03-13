@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastmcp import FastMCP
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("AgentRelay")
 
@@ -61,14 +64,23 @@ async def list_tasks(api_key: str, limit: int = 50) -> list[dict]:
 @mcp.tool()
 async def get_task(api_key: str, task_id: str) -> dict:
     """Get a single task by its UUID."""
+    try:
+        parsed_id = uuid.UUID(task_id)
+    except ValueError:
+        raise ValueError(f"Invalid task_id UUID: {task_id}")
     session, _agent = await _authenticate(api_key)
     try:
         from agentrelay.repositories.task_repo import TaskRepository
 
-        task = await TaskRepository(session).get(uuid.UUID(task_id))
+        task = await TaskRepository(session).get(parsed_id)
         if task is None:
             raise ValueError(f"Task {task_id} not found")
         return _task_to_dict(task)
+    except ValueError:
+        raise
+    except Exception:
+        logger.warning("DB error in get_task for %s", task_id, exc_info=True)
+        raise
     finally:
         await session.close()
 
@@ -98,8 +110,12 @@ async def create_task(
         task = await svc.create_task(data)
         await session.commit()
         return _task_to_dict(task)
+    except ValueError:
+        await session.rollback()
+        raise
     except Exception:
         await session.rollback()
+        logger.warning("DB error in create_task", exc_info=True)
         raise
     finally:
         await session.close()
@@ -108,6 +124,10 @@ async def create_task(
 @mcp.tool()
 async def claim_task(api_key: str, task_id: str) -> dict:
     """Claim an open task for the authenticated agent."""
+    try:
+        parsed_id = uuid.UUID(task_id)
+    except ValueError:
+        raise ValueError(f"Invalid task_id UUID: {task_id}")
     session, agent = await _authenticate(api_key)
     try:
         from agentrelay.repositories.task_repo import TaskRepository
@@ -115,11 +135,15 @@ async def claim_task(api_key: str, task_id: str) -> dict:
         from agentrelay.services.task_service import TaskService
 
         svc = TaskService(TaskRepository(session), SubmissionRepository(session))
-        task = await svc.claim_task(uuid.UUID(task_id), agent.id)
+        task = await svc.claim_task(parsed_id, agent.id)
         await session.commit()
         return _task_to_dict(task)
+    except ValueError:
+        await session.rollback()
+        raise
     except Exception:
         await session.rollback()
+        logger.warning("DB error in claim_task for %s", task_id, exc_info=True)
         raise
     finally:
         await session.close()
@@ -128,6 +152,10 @@ async def claim_task(api_key: str, task_id: str) -> dict:
 @mcp.tool()
 async def submit_task(api_key: str, task_id: str, output_data: dict) -> dict:
     """Submit output for a claimed task."""
+    try:
+        parsed_id = uuid.UUID(task_id)
+    except ValueError:
+        raise ValueError(f"Invalid task_id UUID: {task_id}")
     session, agent = await _authenticate(api_key)
     try:
         from agentrelay.repositories.task_repo import TaskRepository
@@ -137,7 +165,7 @@ async def submit_task(api_key: str, task_id: str, output_data: dict) -> dict:
 
         svc = TaskService(TaskRepository(session), SubmissionRepository(session))
         data = SubmissionCreate(
-            task_id=uuid.UUID(task_id),
+            task_id=parsed_id,
             agent_id=agent.id,
             output_data=output_data,
         )
@@ -150,8 +178,12 @@ async def submit_task(api_key: str, task_id: str, output_data: dict) -> dict:
             "output_data": submission.output_data,
             "submitted_at": submission.submitted_at.isoformat() if submission.submitted_at else None,
         }
+    except ValueError:
+        await session.rollback()
+        raise
     except Exception:
         await session.rollback()
+        logger.warning("DB error in submit_task for %s", task_id, exc_info=True)
         raise
     finally:
         await session.close()
@@ -160,11 +192,15 @@ async def submit_task(api_key: str, task_id: str, output_data: dict) -> dict:
 @mcp.tool()
 async def get_agent_reputation(api_key: str, agent_id: str) -> dict:
     """Get the latest reputation snapshot for an agent."""
+    try:
+        parsed_agent_id = uuid.UUID(agent_id)
+    except ValueError:
+        raise ValueError(f"Invalid agent_id UUID: {agent_id}")
     session, _agent = await _authenticate(api_key)
     try:
         from agentrelay.repositories.reputation_repo import ReputationRepository
 
-        snapshot = await ReputationRepository(session).get_latest(uuid.UUID(agent_id))
+        snapshot = await ReputationRepository(session).get_latest(parsed_agent_id)
         if snapshot is None:
             return {"agent_id": agent_id, "metrics": None, "message": "No reputation data yet"}
         return {
@@ -172,6 +208,11 @@ async def get_agent_reputation(api_key: str, agent_id: str) -> dict:
             "metrics": snapshot.metrics,
             "snapshot_at": snapshot.snapshot_at.isoformat() if snapshot.snapshot_at else None,
         }
+    except ValueError:
+        raise
+    except Exception:
+        logger.warning("DB error in get_agent_reputation for %s", agent_id, exc_info=True)
+        raise
     finally:
         await session.close()
 
@@ -219,7 +260,7 @@ async def discover_capabilities() -> dict:
                     open_tasks_by_type[tt] = open_tasks_by_type.get(tt, 0) + count
                     open_tasks_by_difficulty[diff] = open_tasks_by_difficulty.get(diff, 0) + count
     except Exception:
-        pass  # graceful degradation — return capabilities even if DB is unavailable
+        logger.warning("DB unavailable in discover_capabilities — returning static info only", exc_info=True)
 
     return {
         "version": _VERSION,

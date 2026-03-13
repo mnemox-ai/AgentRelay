@@ -5,9 +5,13 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import logging
+
 from agentrelay.domain.capability import AgentCapability
 from agentrelay.domain.task_lifecycle import TaskStateMachine
 from agentrelay.domain.task_spec import TaskDifficulty, TaskType
+
+logger = logging.getLogger(__name__)
 from agentrelay.models.task import Task
 from agentrelay.models.submission import Submission
 from agentrelay.repositories.agent_repo import AgentRepository
@@ -103,7 +107,7 @@ class TaskService:
                     if not capability.supports_task_type(task_type):
                         continue
                 except ValueError:
-                    pass  # Unknown type — don't filter out
+                    logger.warning("Unknown task_type value: %s", raw_type)
 
             # Filter by difficulty
             raw_diff = spec.get("difficulty")
@@ -113,7 +117,7 @@ class TaskService:
                     if not capability.supports_difficulty(difficulty):
                         continue
                 except ValueError:
-                    pass
+                    logger.warning("Unknown difficulty value: %s", raw_diff)
 
             # Filter by token_estimate vs safe_token_cap
             token_estimate = spec.get("token_estimate", 0)

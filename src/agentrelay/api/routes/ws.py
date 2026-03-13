@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from agentrelay.services.notification_service import notification_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -18,5 +22,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
             await ws.receive_text()
     except WebSocketDisconnect:
         pass
+    except Exception:
+        logger.warning("WebSocket connection error (timeout or protocol failure)")
     finally:
         await notification_service.disconnect(ws)
