@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agentrelay.api.deps import get_current_agent, get_db, rate_limit_by_agent, rate_limit_by_ip
+from agentrelay.api.deps import get_db, rate_limit_by_agent, rate_limit_by_ip
 from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.models.agent import Agent
 from agentrelay.repositories.submission_repo import SubmissionRepository
@@ -17,7 +17,6 @@ from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
 from agentrelay.security.task_sanitizer import scan_input
 from agentrelay.security.output_sanitizer import scan_output
-from agentrelay.security.task_sanitizer import ThreatLevel
 from agentrelay.security.token_limiter import check_token_budget
 from agentrelay.repositories.ledger_repo import LedgerRepository
 from agentrelay.repositories.reputation_repo import ReputationRepository

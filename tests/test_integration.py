@@ -14,7 +14,6 @@ from sqlalchemy import select
 
 from agentrelay.models.ledger import LedgerEntry
 from agentrelay.models.reputation import ReputationSnapshot
-from agentrelay.models.validation_run import ValidationRun
 
 
 # ---------------------------------------------------------------------------

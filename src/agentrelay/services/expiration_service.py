@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import select, update
@@ -84,7 +83,6 @@ async def expire_overdue_tasks(db: AsyncSession) -> list[dict]:
                 "incomplete": 0,
             }
             incomplete = prev.get("incomplete", 0) + 1
-            total = prev.get("total_submissions", 0)
             metrics = {
                 **prev,
                 "incomplete": incomplete,
