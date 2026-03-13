@@ -14,7 +14,6 @@ keywords = ["ai-agent", "mcp", "microtask", "validation", "multi-agent", "fastap
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: FastAPI",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
