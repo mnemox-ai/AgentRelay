@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from agentrelay.models.base import Base
 from agentrelay.models.agent import Agent
 from agentrelay.models.task import Task
+from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.security.auth import generate_api_key
 
 # ---------------------------------------------------------------------------
@@ -167,7 +168,7 @@ class TestClaimTask:
         task = await _create_task_row(publisher.id)
 
         await claim_task(api_key=key1, task_id=str(task.id))
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTransitionError):
             await claim_task(api_key=key2, task_id=str(task.id))
 
 
@@ -197,7 +198,7 @@ class TestSubmitTask:
         worker, worker_key = await _create_agent("sub-worker2")
         task = await _create_task_row(publisher.id)
 
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTransitionError):
             await submit_task(
                 api_key=worker_key,
                 task_id=str(task.id),

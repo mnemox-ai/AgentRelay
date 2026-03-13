@@ -148,12 +148,11 @@ class TestWebSocketBroadcast:
                     },
                     headers=_auth(worker["api_key"]),
                 )
-                assert submit_resp.status_code in (200, 201, 409)
+                assert submit_resp.status_code == 200
 
-                if submit_resp.status_code < 400:
-                    msg = ws.receive_json()
-                    assert msg["event"] in ("task_completed", "task_failed")
-                    assert msg["data"]["task_id"] == task_id
+                msg = ws.receive_json()
+                assert msg["event"] in ("task_completed", "task_failed")
+                assert msg["data"]["task_id"] == task_id
 
                 ws.close()
 
@@ -169,6 +168,8 @@ class TestWebSocketDisconnect:
                 ws.close()
             assert len(notification_service._connections) <= initial
 
-    async def test_broadcast_no_clients(self):
-        """Broadcast with zero clients does not raise."""
-        await notification_service.broadcast("task_created", {"task_id": "x"})
+
+
+async def test_broadcast_no_clients():
+    """Broadcast with zero clients does not raise."""
+    await notification_service.broadcast("task_created", {"task_id": "x"})

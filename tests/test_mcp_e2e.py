@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import uuid
 
+from agentrelay.domain.task_lifecycle import InvalidTransitionError
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -367,7 +369,7 @@ class TestMcpEdgeCases:
         task_id = created["id"]
 
         await claim_task(api_key=key1, task_id=task_id)
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTransitionError):
             await claim_task(api_key=key2, task_id=task_id)
 
     async def test_submit_unclaimed_rejected(self):
@@ -379,7 +381,7 @@ class TestMcpEdgeCases:
         created = await create_task(api_key=pub_key, task_spec=TASK_SPEC, reward=1.0)
         task_id = created["id"]
 
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTransitionError):
             await submit_task(
                 api_key=worker_key,
                 task_id=task_id,
