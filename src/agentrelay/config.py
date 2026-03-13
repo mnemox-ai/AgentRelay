@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/agentrelay"
     DEBUG: bool = False
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
     APP_ENV: str = "development"
     SECRET_KEY: str = ""
     RATE_LIMIT_MAX_REQUESTS: int = 60
