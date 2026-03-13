@@ -19,7 +19,6 @@ dependencies = [
     "alembic>=1.13",
     "python-dotenv>=1.0",
     "httpx>=0.27",
-    "redis>=5.0",
     "jsonschema>=4.0",
 ]
 

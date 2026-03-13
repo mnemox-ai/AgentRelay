@@ -7,16 +7,20 @@ import uuid
 import pytest
 
 
-async def _create_agent(client, name="worker") -> str:
-    resp = await client.post("/agents", json={"name": name})
+async def _create_agent(client, name="worker", quota_profile=None) -> str:
+    payload = {"name": name}
+    if quota_profile is not None:
+        payload["quota_profile"] = quota_profile
+    resp = await client.post("/agents", json=payload)
     return resp.json()["id"]
 
 
-async def _create_task(client, publisher_id: str) -> dict:
+async def _create_task(client, publisher_id: str, task_spec=None) -> dict:
+    spec = task_spec or {"type": "coding", "description": "write tests"}
     resp = await client.post(
         "/tasks",
         json={
-            "task_spec": {"type": "coding", "description": "write tests"},
+            "task_spec": spec,
             "publisher_id": publisher_id,
             "reward": 5.0,
         },
@@ -75,6 +79,26 @@ class TestListAvailable:
         assert len(resp.json()) == 2
 
 
+class TestGetTask:
+    @pytest.mark.asyncio
+    async def test_get_task_success(self, client):
+        pub_id = await _create_agent(client, "pub-get")
+        task = await _create_task(client, pub_id)
+
+        resp = await client.get(f"/tasks/{task['id']}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == task["id"]
+        assert data["status"] == "open"
+        assert data["publisher_id"] == pub_id
+
+    @pytest.mark.asyncio
+    async def test_get_task_not_found(self, client):
+        fake_id = str(uuid.uuid4())
+        resp = await client.get(f"/tasks/{fake_id}")
+        assert resp.status_code == 404
+
+
 class TestClaimTask:
     @pytest.mark.asyncio
     async def test_claim_success(self, client):
@@ -93,8 +117,8 @@ class TestClaimTask:
     @pytest.mark.asyncio
     async def test_claim_already_claimed(self, client):
         pub_id = await _create_agent(client, "pub-dbl")
-        w1 = await _create_agent(client, "w1")
-        w2 = await _create_agent(client, "w2")
+        w1 = await _create_agent(client, "worker-dbl-1")
+        w2 = await _create_agent(client, "worker-dbl-2")
         task = await _create_task(client, pub_id)
 
         await client.post(f"/tasks/{task['id']}/claim", json={"agent_id": w1})
@@ -104,7 +128,7 @@ class TestClaimTask:
     @pytest.mark.asyncio
     async def test_claim_not_found(self, client):
         fake_id = str(uuid.uuid4())
-        worker_id = await _create_agent(client, "w-nf")
+        worker_id = await _create_agent(client, "worker-nf")
         resp = await client.post(f"/tasks/{fake_id}/claim", json={"agent_id": worker_id})
         assert resp.status_code == 409
 
@@ -165,3 +189,56 @@ class TestSubmitTask:
             },
         )
         assert resp.status_code == 409
+
+
+class TestTokenLimiterOnClaim:
+    @pytest.mark.asyncio
+    async def test_claim_rejected_when_over_token_budget(self, client):
+        """Task with token_estimate > agent's safe_token_cap should be rejected."""
+        pub_id = await _create_agent(client, "pub-token")
+        worker_id = await _create_agent(
+            client, "worker-limited", quota_profile={"safe_token_cap": 1000}
+        )
+        task = await _create_task(
+            client, pub_id, task_spec={"type": "coding", "token_estimate": 5000}
+        )
+
+        resp = await client.post(
+            f"/tasks/{task['id']}/claim",
+            json={"agent_id": worker_id},
+        )
+        assert resp.status_code == 403
+        assert "Token budget exceeded" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_claim_allowed_within_token_budget(self, client):
+        """Task with token_estimate <= agent's safe_token_cap should be allowed."""
+        pub_id = await _create_agent(client, "pub-token-ok")
+        worker_id = await _create_agent(
+            client, "worker-ok", quota_profile={"safe_token_cap": 10000}
+        )
+        task = await _create_task(
+            client, pub_id, task_spec={"type": "coding", "token_estimate": 5000}
+        )
+
+        resp = await client.post(
+            f"/tasks/{task['id']}/claim",
+            json={"agent_id": worker_id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "claimed"
+
+    @pytest.mark.asyncio
+    async def test_claim_allowed_when_no_token_estimate(self, client):
+        """Tasks without token_estimate should not be blocked."""
+        pub_id = await _create_agent(client, "pub-no-est")
+        worker_id = await _create_agent(
+            client, "worker-no-est", quota_profile={"safe_token_cap": 1000}
+        )
+        task = await _create_task(client, pub_id)
+
+        resp = await client.post(
+            f"/tasks/{task['id']}/claim",
+            json={"agent_id": worker_id},
+        )
+        assert resp.status_code == 200

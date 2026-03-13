@@ -40,6 +40,29 @@ class TestRegisterAgent:
         assert "already registered" in resp.json()["detail"]
 
 
+class TestAgentNameValidation:
+    @pytest.mark.asyncio
+    async def test_name_too_short(self, client):
+        resp = await client.post("/agents", json={"name": "ab"})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_name_too_long(self, client):
+        resp = await client.post("/agents", json={"name": "a" * 256})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_name_invalid_chars(self, client):
+        resp = await client.post("/agents", json={"name": "bot @#!"})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_name_valid_with_hyphens_underscores(self, client):
+        resp = await client.post("/agents", json={"name": "my_bot-1"})
+        assert resp.status_code == 201
+        assert resp.json()["name"] == "my_bot-1"
+
+
 class TestGetAgent:
     @pytest.mark.asyncio
     async def test_get_existing(self, client):
