@@ -11,6 +11,7 @@ import type {
 export { useAgents, useAgent } from "./use-agents";
 export { useTasks, useTask, useRecentTasks } from "./use-tasks";
 export { useStats, useValidationRate } from "./use-stats";
+export { useWebSocket } from "./use-websocket";
 
 // ─── Submissions ───────────────────────────────────────────────────────────
 

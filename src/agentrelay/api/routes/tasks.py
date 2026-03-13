@@ -24,6 +24,7 @@ from agentrelay.services.reputation_service import ReputationService
 from agentrelay.services.task_service import TaskService
 from agentrelay.services.quota_service import QuotaExceededError, QuotaService
 from agentrelay.services.expiration_service import expire_overdue_tasks
+from agentrelay.services.notification_service import notification_service
 from agentrelay.services.validation_service import ValidationService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -69,6 +70,7 @@ async def create_task(
 
     svc = _task_service(db)
     task = await svc.create_task(body)
+    await notification_service.broadcast("task_created", {"task_id": str(task.id), "status": task.status})
     return task
 
 
@@ -119,6 +121,7 @@ async def claim_task(
     try:
         task = await svc.claim_task(task_id, body.agent_id)
         await db.refresh(task)
+        await notification_service.broadcast("task_claimed", {"task_id": str(task.id), "status": task.status, "agent_id": str(body.agent_id)})
         return task
     except (ValueError, InvalidTransitionError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
@@ -157,6 +160,9 @@ async def submit_task(
         # Update task status based on validation outcome
         final_status = "completed" if result.passed else "failed"
         await task_repo.update_status(body.task_id, final_status)
+
+        event_type = "task_completed" if result.passed else "task_failed"
+        await notification_service.broadcast(event_type, {"task_id": str(body.task_id), "status": final_status})
 
         # Post-validation: ledger + reputation updates
         ledger_svc = LedgerService(LedgerRepository(db))
