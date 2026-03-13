@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import JSON, String, Text, event
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
