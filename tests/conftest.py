@@ -11,7 +11,8 @@ from sqlalchemy.ext.compiler import compiles
 
 from agentrelay.models.base import Base
 from agentrelay.api.app import app
-from agentrelay.api.deps import get_db
+from agentrelay.api.deps import get_db, get_rate_limiter
+from agentrelay.security.rate_limiter import RateLimiter
 
 # --------------------------------------------------------------------------
 # Make PostgreSQL types work on SQLite
@@ -60,6 +61,16 @@ async def _override_get_db():
 
 
 app.dependency_overrides[get_db] = _override_get_db
+
+# Use a very permissive rate limiter for tests so existing tests are not blocked
+_test_rate_limiter = RateLimiter(max_requests=10_000, window_seconds=1)
+
+
+def _override_rate_limiter() -> RateLimiter:
+    return _test_rate_limiter
+
+
+app.dependency_overrides[get_rate_limiter] = _override_rate_limiter
 
 
 @pytest.fixture

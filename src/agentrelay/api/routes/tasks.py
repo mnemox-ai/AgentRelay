@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agentrelay.api.deps import get_current_agent, get_db
+from agentrelay.api.deps import get_current_agent, get_db, rate_limit_by_agent, rate_limit_by_ip
 from agentrelay.models.agent import Agent
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.repositories.task_repo import TaskRepository
@@ -27,7 +27,7 @@ def _task_service(db: AsyncSession) -> TaskService:
 @router.post("", response_model=TaskResponse, status_code=201)
 async def create_task(
     body: TaskCreate,
-    _agent: Agent = Depends(get_current_agent),
+    _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
     svc = _task_service(db)
@@ -35,13 +35,13 @@ async def create_task(
     return task
 
 
-@router.get("/available", response_model=list[TaskResponse])
+@router.get("/available", response_model=list[TaskResponse], dependencies=[Depends(rate_limit_by_ip)])
 async def list_available_tasks(limit: int = 50, db: AsyncSession = Depends(get_db)):
     svc = _task_service(db)
     return await svc.get_available_tasks(limit=limit)
 
 
-@router.get("/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}", response_model=TaskResponse, dependencies=[Depends(rate_limit_by_ip)])
 async def get_task(task_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     repo = TaskRepository(db)
     task = await repo.get(task_id)
@@ -54,7 +54,7 @@ async def get_task(task_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 async def claim_task(
     task_id: uuid.UUID,
     body: TaskClaimRequest,
-    _agent: Agent = Depends(get_current_agent),
+    _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
     # Check token budget before allowing claim
@@ -85,7 +85,7 @@ async def claim_task(
 async def submit_task(
     task_id: uuid.UUID,
     body: SubmissionCreate,
-    _agent: Agent = Depends(get_current_agent),
+    _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
     svc = _task_service(db)

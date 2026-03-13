@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     APP_ENV: str = "development"
     SECRET_KEY: str = ""
+    RATE_LIMIT_MAX_REQUESTS: int = 60
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
 
 
 settings = Settings()
