@@ -274,3 +274,130 @@ class TestFailedValidationFlow:
         assert len(entries) == 1
         assert entries[0].entry_type == "penalty"
         assert entries[0].amount < 0  # penalties are negative
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: Multi-Agent Coordination
+# ---------------------------------------------------------------------------
+
+
+class TestCapabilityMatching:
+    """Agent capability match → only see matched tasks."""
+
+    @pytest.mark.asyncio
+    async def test_agent_only_sees_matched_tasks(self, client, db_session):
+        # Register publisher (no capabilities needed)
+        publisher = await _register_agent(client, "cap-publisher")
+
+        # Register worker with capabilities: only supports data_structuring
+        resp = await client.post(
+            "/agents",
+            json={
+                "name": "cap-worker",
+                "capabilities": {
+                    "supported_task_types": ["data_structuring"],
+                    "max_difficulty": "medium",
+                },
+            },
+        )
+        assert resp.status_code == 201
+        worker = {"id": resp.json()["id"], "api_key": resp.json()["api_key"]}
+
+        # Create 2 tasks: one data_structuring, one research_extraction
+        for task_type in ("data_structuring", "research_extraction"):
+            await client.post(
+                "/tasks",
+                json={
+                    "task_spec": {"type": task_type, "description": f"task-{task_type}"},
+                    "publisher_id": publisher["id"],
+                    "reward": 5.0,
+                },
+                headers=_auth(publisher["api_key"]),
+            )
+
+        # Query available tasks filtered by agent capabilities
+        avail_resp = await client.get(
+            "/tasks/available", params={"agent_id": worker["id"]}
+        )
+        assert avail_resp.status_code == 200
+        matched = avail_resp.json()
+
+        # Worker should only see data_structuring tasks
+        matched_types = [t["task_spec"].get("type") for t in matched]
+        assert "data_structuring" in matched_types
+        assert "research_extraction" not in matched_types
+
+
+class TestQuotaEnforcement:
+    """Quota enforcement → claim rejected when over budget."""
+
+    @pytest.mark.asyncio
+    async def test_claim_rejected_when_over_token_budget(self, client, db_session):
+        publisher = await _register_agent(client, "quota-publisher")
+
+        # Register worker with very low token cap
+        worker = await _register_agent(
+            client, "quota-worker", quota_profile={"safe_token_cap": 100}
+        )
+
+        # Create task requiring 5000 tokens
+        create_resp = await client.post(
+            "/tasks",
+            json={
+                "task_spec": {
+                    "type": "research_extraction",
+                    "description": "heavy task",
+                    "token_estimate": 5000,
+                },
+                "publisher_id": publisher["id"],
+                "reward": 10.0,
+            },
+            headers=_auth(publisher["api_key"]),
+        )
+        assert create_resp.status_code == 201
+        task_id = create_resp.json()["id"]
+
+        # Worker tries to claim → should be rejected (403)
+        claim_resp = await client.post(
+            f"/tasks/{task_id}/claim",
+            json={"agent_id": worker["id"]},
+            headers=_auth(worker["api_key"]),
+        )
+        assert claim_resp.status_code == 403
+        assert "Token budget exceeded" in claim_resp.json()["detail"]
+
+
+class TestBatchTaskCreation:
+    """Batch create 10 tasks → all appear."""
+
+    @pytest.mark.asyncio
+    async def test_batch_create_10_tasks(self, client, db_session):
+        publisher = await _register_agent(client, "batch-publisher")
+
+        tasks_payload = [
+            {
+                "task_spec": {
+                    "type": "data_structuring",
+                    "description": f"batch-task-{i}",
+                },
+                "publisher_id": publisher["id"],
+                "reward": 1.0 + i,
+            }
+            for i in range(10)
+        ]
+
+        batch_resp = await client.post(
+            "/tasks/batch",
+            json={"tasks": tasks_payload},
+            headers=_auth(publisher["api_key"]),
+        )
+        assert batch_resp.status_code == 201
+        created = batch_resp.json()
+        assert len(created) == 10
+
+        # Verify all 10 tasks are visible in available list
+        avail_resp = await client.get("/tasks/available")
+        assert avail_resp.status_code == 200
+        available_ids = {t["id"] for t in avail_resp.json()}
+        created_ids = {t["id"] for t in created}
+        assert created_ids.issubset(available_ids)

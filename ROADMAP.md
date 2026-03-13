@@ -49,14 +49,14 @@
 - ✅ Task 36: Health check deep (db connectivity)
 - ✅ Task 37: Structured logging (JSON)
 
-## Phase 4 — Multi-Agent Coordination (v0.5.0)
+## Phase 4 — Multi-Agent Coordination (v0.5.0) ✅
 
-- ❌ Task 38: Agent capability matching
-- ❌ Task 39: Quota enforcement middleware
-- ❌ Task 40: WebSocket notifications for task state changes
-- ❌ Task 41: Batch task creation endpoint
-- ❌ Task 42: Redis priority queue
-- ❌ Task 43: Task dependencies (DAG-based workflow)
+- ✅ Task 38: Agent capability matching
+- ✅ Task 39: Quota enforcement middleware
+- ✅ Task 40: WebSocket notifications for task state changes
+- ✅ Task 41: Batch task creation endpoint
+- ✅ Task 42: Redis priority queue
+- ✅ Task 43: Task dependencies (DAG-based workflow)
 
 ## Phase 5 — MCP Server + SKILL.md (v0.6.0)
 

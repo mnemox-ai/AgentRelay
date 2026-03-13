@@ -26,7 +26,7 @@ from agentrelay.services.quota_service import QuotaExceededError, QuotaService
 from agentrelay.services.expiration_service import expire_overdue_tasks
 from agentrelay.services.notification_service import notification_service
 from agentrelay.services.validation_service import ValidationService
-from agentrelay.services.queue_service import QueueService, get_redis, QUEUE_KEY
+from agentrelay.services.queue_service import QueueService, get_redis
 from agentrelay.config import settings
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 from starlette.testclient import TestClient
 
 from agentrelay.api.app import app
