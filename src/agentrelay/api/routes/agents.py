@@ -1,0 +1,37 @@
+"""Agent registration and lookup routes."""
+
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from agentrelay.api.deps import get_db
+from agentrelay.repositories.agent_repo import AgentRepository
+from agentrelay.schemas.agent import AgentRegister, AgentResponse
+
+router = APIRouter(prefix="/agents", tags=["agents"])
+
+
+@router.post("", response_model=AgentResponse, status_code=201)
+async def register_agent(body: AgentRegister, db: AsyncSession = Depends(get_db)):
+    repo = AgentRepository(db)
+    existing = await repo.get_by_name(body.name)
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Agent name already registered")
+    agent = await repo.create(
+        name=body.name,
+        quota_profile=body.quota_profile,
+        capabilities=body.capabilities,
+    )
+    return agent
+
+
+@router.get("/{agent_id}", response_model=AgentResponse)
+async def get_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    repo = AgentRepository(db)
+    agent = await repo.get(agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return agent
