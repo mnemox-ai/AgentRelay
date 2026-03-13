@@ -5,7 +5,7 @@
 AgentRelay = Verifiable Microtask Protocol for AI Agents。多 agent 協作平台，讓 AI agent 發布、認領、執行微任務，並透過驗證引擎確保產出品質。
 
 - GitHub: mnemox-ai/AgentRelay
-- 版本: v0.2.0
+- 版本: v0.4.0
 - License: Apache-2.0
 - Default branch: `main`
 

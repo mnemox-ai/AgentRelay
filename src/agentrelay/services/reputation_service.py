@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from agentrelay.models.reputation import ReputationSnapshot
 from agentrelay.repositories.reputation_repo import ReputationRepository
 from agentrelay.domain.validation_result import ValidationResult
 
@@ -16,7 +17,7 @@ class ReputationService:
         self,
         agent_id: uuid.UUID,
         validation_result: ValidationResult,
-    ):
+    ) -> ReputationSnapshot:
         latest = await self.reputation_repo.get_latest(agent_id)
 
         if latest is not None:

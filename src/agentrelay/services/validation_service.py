@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentrelay.domain.validation_result import ValidationResult, ValidatorType
+from agentrelay.models.submission import Submission
+from agentrelay.models.task import Task
 from agentrelay.models.validation_run import ValidationRun
 from agentrelay.validation.schema_validator import SchemaValidator
 from agentrelay.validation.rule_validator import RuleValidator
@@ -19,8 +22,8 @@ class ValidationService:
 
     async def validate_submission(
         self,
-        submission,
-        task,
+        submission: Submission,
+        task: Task,
     ) -> ValidationResult:
         """Run validation pipeline based on task_spec.validation_method.
 
@@ -68,7 +71,7 @@ class ValidationService:
 
         return self._merge_results(results)
 
-    async def _persist_run(self, submission_id, result: ValidationResult) -> None:
+    async def _persist_run(self, submission_id: uuid.UUID, result: ValidationResult) -> None:
         """Save a ValidationRun record to the database."""
         if self.session is None:
             return

@@ -6,6 +6,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from agentrelay.domain.task_lifecycle import TaskStateMachine
+from agentrelay.models.task import Task
+from agentrelay.models.submission import Submission
 from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.schemas.task import TaskCreate
@@ -21,7 +23,7 @@ class TaskService:
         self.task_repo = task_repo
         self.submission_repo = submission_repo
 
-    async def create_task(self, data: TaskCreate):
+    async def create_task(self, data: TaskCreate) -> Task:
         deadline_at = None
         if data.deadline_seconds is not None:
             deadline_at = datetime.now(timezone.utc) + timedelta(seconds=data.deadline_seconds)
@@ -33,7 +35,7 @@ class TaskService:
             deadline_at=deadline_at,
         )
 
-    async def claim_task(self, task_id: uuid.UUID, agent_id: uuid.UUID):
+    async def claim_task(self, task_id: uuid.UUID, agent_id: uuid.UUID) -> Task | None:
         # Double-check with row-level lock to prevent concurrent claims
         task = await self.task_repo.get_for_update(task_id)
         if task is None:
@@ -42,10 +44,10 @@ class TaskService:
         now = datetime.now(timezone.utc)
         return await self.task_repo.update_status(task_id, "claimed", claimed_by=agent_id, claimed_at=now)
 
-    async def get_available_tasks(self, limit: int = 50):
+    async def get_available_tasks(self, limit: int = 50) -> list[Task]:
         return await self.task_repo.list_available(limit=limit)
 
-    async def submit_task(self, data: SubmissionCreate):
+    async def submit_task(self, data: SubmissionCreate) -> Submission:
         task = await self.task_repo.get(data.task_id)
         if task is None:
             raise ValueError("Task not found")

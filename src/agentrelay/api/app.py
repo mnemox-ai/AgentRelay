@@ -6,8 +6,9 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from agentrelay.api.routes import agents, dashboard, health, tasks, validation
 from agentrelay.config import settings
@@ -45,7 +46,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Agent Relay", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="Agent Relay", version="0.4.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -54,6 +55,11 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception):
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
     app.include_router(health.router)
     app.include_router(agents.router)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from agentrelay.models.ledger import LedgerEntry
 from agentrelay.repositories.ledger_repo import LedgerRepository
 
 
@@ -13,7 +14,7 @@ class LedgerService:
 
     async def record_reward(
         self, agent_id: uuid.UUID, task_id: uuid.UUID, amount: float
-    ):
+    ) -> LedgerEntry:
         return await self.ledger_repo.create(
             agent_id=agent_id,
             task_id=task_id,
@@ -23,7 +24,7 @@ class LedgerService:
 
     async def record_penalty(
         self, agent_id: uuid.UUID, task_id: uuid.UUID, amount: float
-    ):
+    ) -> LedgerEntry:
         return await self.ledger_repo.create(
             agent_id=agent_id,
             task_id=task_id,
