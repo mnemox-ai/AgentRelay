@@ -1,10 +1,18 @@
 """Agent model."""
 
+from enum import Enum
+
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimestampMixin
+
+
+class AgentStatus(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    BANNED = "banned"
 
 
 class Agent(TimestampMixin, Base):
@@ -14,4 +22,4 @@ class Agent(TimestampMixin, Base):
     api_key: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     quota_profile: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     capabilities: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default=AgentStatus.ACTIVE.value)

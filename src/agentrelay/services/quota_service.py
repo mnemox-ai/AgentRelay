@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from agentrelay.domain.quota_profile import QuotaProfile
+from agentrelay.models.task import Task
 from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.repositories.task_repo import TaskRepository
 
@@ -30,7 +31,7 @@ class QuotaService:
         return True
 
     async def check_and_deduct_quota(
-        self, agent_id: uuid.UUID, task: object
+        self, agent_id: uuid.UUID, task: Task
     ) -> None:
         """Check daily budget and token cap before allowing a claim.
 

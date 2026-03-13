@@ -22,7 +22,7 @@ class ValidationResult:
     validator_type: ValidatorType
     details: str
     errors: list[str] = field(default_factory=list)
-    validated_at: datetime = None
+    validated_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if self.validated_at is None:
