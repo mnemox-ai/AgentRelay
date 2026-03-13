@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from agentrelay.domain.task_lifecycle import TaskStateMachine
 from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.schemas.task import TaskCreate
@@ -37,9 +38,9 @@ class TaskService:
         task = await self.task_repo.get_for_update(task_id)
         if task is None:
             raise ValueError("Task not found")
-        if task.status != "open":
-            raise ValueError(f"Task is not open (status={task.status})")
-        return await self.task_repo.update_status(task_id, "claimed", claimed_by=agent_id)
+        TaskStateMachine.transition(task.status, "claimed")
+        now = datetime.now(timezone.utc)
+        return await self.task_repo.update_status(task_id, "claimed", claimed_by=agent_id, claimed_at=now)
 
     async def get_available_tasks(self, limit: int = 50):
         return await self.task_repo.list_available(limit=limit)
@@ -48,8 +49,7 @@ class TaskService:
         task = await self.task_repo.get(data.task_id)
         if task is None:
             raise ValueError("Task not found")
-        if task.status != "claimed":
-            raise ValueError(f"Task is not claimed (status={task.status})")
+        TaskStateMachine.transition(task.status, "submitted")
         if task.claimed_by != data.agent_id:
             raise ValueError("Agent did not claim this task")
 
@@ -58,5 +58,6 @@ class TaskService:
             agent_id=data.agent_id,
             output_data=data.output_data,
         )
-        await self.task_repo.update_status(data.task_id, "submitted")
+        now = datetime.now(timezone.utc)
+        await self.task_repo.update_status(data.task_id, "submitted", submitted_at=now)
         return submission

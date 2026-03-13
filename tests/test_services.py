@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from agentrelay.domain.quota_profile import QuotaProfile
+from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.schemas.submission import SubmissionCreate
 from agentrelay.schemas.task import TaskCreate
 from agentrelay.services.quota_service import QuotaService
@@ -145,7 +146,11 @@ class TestTaskService:
         result = await svc.claim_task(task.id, agent_id)
 
         assert result == claimed
-        task_repo.update_status.assert_called_once_with(task.id, "claimed", claimed_by=agent_id)
+        task_repo.update_status.assert_called_once()
+        call_args = task_repo.update_status.call_args
+        assert call_args.args == (task.id, "claimed")
+        assert call_args.kwargs["claimed_by"] == agent_id
+        assert call_args.kwargs["claimed_at"] is not None
 
     @pytest.mark.asyncio
     async def test_claim_task_not_found(self):
@@ -161,7 +166,7 @@ class TestTaskService:
         task = _make_task(status="claimed")
         task_repo.get_for_update.return_value = task
 
-        with pytest.raises(ValueError, match="not open"):
+        with pytest.raises(InvalidTransitionError, match="claimed -> claimed"):
             await svc.claim_task(task.id, uuid.uuid4())
 
     @pytest.mark.asyncio
@@ -193,7 +198,10 @@ class TestTaskService:
         result = await svc.submit_task(data)
 
         assert result == sub
-        task_repo.update_status.assert_called_once_with(task.id, "submitted")
+        task_repo.update_status.assert_called_once()
+        call_args = task_repo.update_status.call_args
+        assert call_args.args == (task.id, "submitted")
+        assert call_args.kwargs["submitted_at"] is not None
 
     @pytest.mark.asyncio
     async def test_submit_task_not_found(self):
@@ -219,7 +227,7 @@ class TestTaskService:
             agent_id=uuid.uuid4(),
             output_data={"result": "ok"},
         )
-        with pytest.raises(ValueError, match="not claimed"):
+        with pytest.raises(InvalidTransitionError, match="open -> submitted"):
             await svc.submit_task(data)
 
     @pytest.mark.asyncio

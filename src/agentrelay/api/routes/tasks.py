@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentrelay.api.deps import get_current_agent, get_db, rate_limit_by_agent, rate_limit_by_ip
+from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.models.agent import Agent
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.repositories.task_repo import TaskRepository
@@ -77,7 +78,7 @@ async def claim_task(
         task = await svc.claim_task(task_id, body.agent_id)
         await db.refresh(task)
         return task
-    except ValueError as exc:
+    except (ValueError, InvalidTransitionError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
 
@@ -93,5 +94,5 @@ async def submit_task(
         submission = await svc.submit_task(body)
         await db.refresh(submission)
         return submission
-    except ValueError as exc:
+    except (ValueError, InvalidTransitionError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))

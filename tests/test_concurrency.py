@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.schemas.submission import SubmissionCreate
 from agentrelay.services.task_service import TaskService
 
@@ -69,7 +70,7 @@ class TestConcurrentClaim:
         # Second claim: task is already claimed (get_for_update sees locked row)
         task_repo.get_for_update.return_value = claimed_task
 
-        with pytest.raises(ValueError, match="not open"):
+        with pytest.raises(InvalidTransitionError, match="claimed -> claimed"):
             await svc.claim_task(task_id, agent2)
 
     @pytest.mark.asyncio

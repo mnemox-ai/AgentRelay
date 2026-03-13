@@ -7,6 +7,7 @@ import uuid
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentrelay.domain.task_lifecycle import TaskStateMachine
 from agentrelay.models.task import Task
 
 
@@ -35,6 +36,10 @@ class TaskRepository:
         return list(result.scalars().all())
 
     async def update_status(self, task_id: uuid.UUID, status: str, **kwargs) -> Task | None:
+        task = await self.get(task_id)
+        if task is None:
+            return None
+        TaskStateMachine.transition(task.status, status)
         stmt = update(Task).where(Task.id == task_id).values(status=status, **kwargs)
         await self.session.execute(stmt)
         await self.session.flush()
