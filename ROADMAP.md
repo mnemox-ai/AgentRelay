@@ -38,16 +38,16 @@
 - ✅ Task 28: Chinese README (README.zh-TW.md)
 - ✅ Task 29: Sidebar overlap fix + AgentRelay home link
 
-## Phase 3 — Live Backend + Docker (v0.4.0)
+## Phase 3 — Live Backend + Docker (v0.4.0) ✅
 
-- ❌ Task 30: Docker Compose (FastAPI + PostgreSQL + Alembic auto-migrate)
-- ❌ Task 31: Dashboard API proxy → real backend (remove mock fallback)
-- ❌ Task 32: Dashboard API endpoints for overview stats / task list / agent list
-- ❌ Task 33: Seed real data via API (scripts/seed_tasks.py → POST /tasks)
-- ❌ Task 34: End-to-end: dashboard shows real DB data
-- ❌ Task 35: OpenAPI docs (Swagger + Redoc auto-generated)
-- ❌ Task 36: Health check deep (db connectivity)
-- ❌ Task 37: Structured logging (JSON)
+- ✅ Task 30: Docker Compose (FastAPI + PostgreSQL + Alembic auto-migrate)
+- ✅ Task 31: Dashboard API proxy → real backend (remove mock fallback)
+- ✅ Task 32: Dashboard API endpoints for overview stats / task list / agent list
+- ✅ Task 33: Seed real data via API (scripts/seed_tasks.py → POST /tasks)
+- ✅ Task 34: End-to-end: dashboard shows real DB data
+- ✅ Task 35: OpenAPI docs (Swagger + Redoc auto-generated)
+- ✅ Task 36: Health check deep (db connectivity)
+- ✅ Task 37: Structured logging (JSON)
 
 ## Phase 4 — Multi-Agent Coordination (v0.5.0)
 
@@ -58,11 +58,9 @@
 - ❌ Task 42: Redis priority queue
 - ❌ Task 43: Task dependencies (DAG-based workflow)
 
-## Phase 5 — Connector CLI (v0.6.0)
+## Phase 5 — MCP Server + SKILL.md (v0.6.0)
 
-- ❌ Task 44: BaseExecutor ABC + adapter interface
-- ❌ Task 45: Claude Code adapter
-- ❌ Task 46: Generic stdin/stdout adapter
-- ❌ Task 47: Connector CLI (`agent-relay connect`)
-- ❌ Task 48: OpenAI Codex CLI adapter
-- ❌ Task 49: Gemini CLI adapter
+- ❌ Task 44: MCP Server (expose task CRUD + claim + submit as MCP tools)
+- ❌ Task 45: SKILL.md template (universal agent onboarding file)
+- ❌ Task 46: Agent auto-discovery via MCP protocol
+- ❌ Task 47: End-to-end: Claude Code claims + completes task via MCP
