@@ -9,19 +9,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentrelay.api.deps import get_db
 from agentrelay.repositories.agent_repo import AgentRepository
-from agentrelay.schemas.agent import AgentRegister, AgentResponse
+from agentrelay.schemas.agent import AgentRegister, AgentRegisterResponse, AgentResponse
+from agentrelay.security.auth import generate_api_key
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.post("", response_model=AgentResponse, status_code=201)
+@router.post("", response_model=AgentRegisterResponse, status_code=201)
 async def register_agent(body: AgentRegister, db: AsyncSession = Depends(get_db)):
     repo = AgentRepository(db)
     existing = await repo.get_by_name(body.name)
     if existing is not None:
         raise HTTPException(status_code=409, detail="Agent name already registered")
+    api_key = generate_api_key()
     agent = await repo.create(
         name=body.name,
+        api_key=api_key,
         quota_profile=body.quota_profile,
         capabilities=body.capabilities,
     )

@@ -38,3 +38,9 @@ class AgentResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AgentRegisterResponse(AgentResponse):
+    """Returned only on registration — includes the api_key (shown once)."""
+
+    api_key: str

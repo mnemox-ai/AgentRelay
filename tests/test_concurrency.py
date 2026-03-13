@@ -141,17 +141,24 @@ class TestDuplicateSubmissionAPI:
     async def test_duplicate_submit_returns_409(self, client):
         # Setup: create agent, task, claim
         resp = await client.post("/agents", json={"name": "pub-dup"})
+        pub_key = resp.json()["api_key"]
         pub_id = resp.json()["id"]
         resp = await client.post("/agents", json={"name": "worker-dup"})
+        worker_key = resp.json()["api_key"]
         worker_id = resp.json()["id"]
 
         resp = await client.post(
             "/tasks",
             json={"task_spec": {"type": "coding"}, "publisher_id": pub_id, "reward": 1.0},
+            headers={"X-API-Key": pub_key},
         )
         task = resp.json()
 
-        await client.post(f"/tasks/{task['id']}/claim", json={"agent_id": worker_id})
+        await client.post(
+            f"/tasks/{task['id']}/claim",
+            json={"agent_id": worker_id},
+            headers={"X-API-Key": worker_key},
+        )
 
         submit_body = {
             "task_id": task["id"],
@@ -160,9 +167,17 @@ class TestDuplicateSubmissionAPI:
         }
 
         # First submit succeeds
-        resp = await client.post(f"/tasks/{task['id']}/submit", json=submit_body)
+        resp = await client.post(
+            f"/tasks/{task['id']}/submit",
+            json=submit_body,
+            headers={"X-API-Key": worker_key},
+        )
         assert resp.status_code == 200
 
         # Second submit should be 409 (task status is now "submitted", not "claimed")
-        resp = await client.post(f"/tasks/{task['id']}/submit", json=submit_body)
+        resp = await client.post(
+            f"/tasks/{task['id']}/submit",
+            json=submit_body,
+            headers={"X-API-Key": worker_key},
+        )
         assert resp.status_code == 409

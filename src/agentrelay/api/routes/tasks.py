@@ -7,7 +7,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agentrelay.api.deps import get_db
+from agentrelay.api.deps import get_current_agent, get_db
+from agentrelay.models.agent import Agent
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.agent_repo import AgentRepository
@@ -24,7 +25,11 @@ def _task_service(db: AsyncSession) -> TaskService:
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
-async def create_task(body: TaskCreate, db: AsyncSession = Depends(get_db)):
+async def create_task(
+    body: TaskCreate,
+    _agent: Agent = Depends(get_current_agent),
+    db: AsyncSession = Depends(get_db),
+):
     svc = _task_service(db)
     task = await svc.create_task(body)
     return task
@@ -46,7 +51,12 @@ async def get_task(task_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{task_id}/claim", response_model=TaskResponse)
-async def claim_task(task_id: uuid.UUID, body: TaskClaimRequest, db: AsyncSession = Depends(get_db)):
+async def claim_task(
+    task_id: uuid.UUID,
+    body: TaskClaimRequest,
+    _agent: Agent = Depends(get_current_agent),
+    db: AsyncSession = Depends(get_db),
+):
     # Check token budget before allowing claim
     task_repo = TaskRepository(db)
     task = await task_repo.get(task_id)
@@ -72,7 +82,12 @@ async def claim_task(task_id: uuid.UUID, body: TaskClaimRequest, db: AsyncSessio
 
 
 @router.post("/{task_id}/submit", response_model=SubmissionResponse)
-async def submit_task(task_id: uuid.UUID, body: SubmissionCreate, db: AsyncSession = Depends(get_db)):
+async def submit_task(
+    task_id: uuid.UUID,
+    body: SubmissionCreate,
+    _agent: Agent = Depends(get_current_agent),
+    db: AsyncSession = Depends(get_db),
+):
     svc = _task_service(db)
     try:
         submission = await svc.submit_task(body)
