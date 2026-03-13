@@ -119,7 +119,7 @@ class TestTaskService:
     async def test_claim_task_success(self):
         svc, task_repo, _ = self._build()
         task = _make_task(status="open")
-        task_repo.get.return_value = task
+        task_repo.get_for_update.return_value = task
         claimed = _make_task(status="claimed")
         task_repo.update_status.return_value = claimed
 
@@ -132,7 +132,7 @@ class TestTaskService:
     @pytest.mark.asyncio
     async def test_claim_task_not_found(self):
         svc, task_repo, _ = self._build()
-        task_repo.get.return_value = None
+        task_repo.get_for_update.return_value = None
 
         with pytest.raises(ValueError, match="Task not found"):
             await svc.claim_task(uuid.uuid4(), uuid.uuid4())
@@ -141,7 +141,7 @@ class TestTaskService:
     async def test_claim_task_not_open(self):
         svc, task_repo, _ = self._build()
         task = _make_task(status="claimed")
-        task_repo.get.return_value = task
+        task_repo.get_for_update.return_value = task
 
         with pytest.raises(ValueError, match="not open"):
             await svc.claim_task(task.id, uuid.uuid4())

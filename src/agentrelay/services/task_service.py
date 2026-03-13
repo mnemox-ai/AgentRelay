@@ -33,7 +33,8 @@ class TaskService:
         )
 
     async def claim_task(self, task_id: uuid.UUID, agent_id: uuid.UUID):
-        task = await self.task_repo.get(task_id)
+        # Double-check with row-level lock to prevent concurrent claims
+        task = await self.task_repo.get_for_update(task_id)
         if task is None:
             raise ValueError("Task not found")
         if task.status != "open":
