@@ -176,5 +176,74 @@ async def get_agent_reputation(api_key: str, agent_id: str) -> dict:
         await session.close()
 
 
+_VERSION = "0.5.0"
+
+
+@mcp.tool()
+async def discover_capabilities() -> dict:
+    """Discover AgentRelay system capabilities: supported task types, difficulties,
+    validation methods, open task statistics, and server status. No auth required."""
+    from agentrelay.domain.task_spec import TaskType, TaskDifficulty
+    from agentrelay.domain.validation_result import ValidatorType
+    from sqlalchemy import func, select
+
+    task_types = [t.value for t in TaskType]
+    difficulties = [d.value for d in TaskDifficulty]
+    validation_methods = ["schema", "schema+rule", "schema+test"]
+    validator_types = [v.value for v in ValidatorType]
+
+    # Query open task stats
+    open_tasks_by_type: dict[str, int] = {}
+    open_tasks_by_difficulty: dict[str, int] = {}
+    total_open = 0
+
+    try:
+        factory = _get_session_factory()
+        async with factory() as session:
+            from agentrelay.models.task import Task
+
+            # Count open tasks by type
+            rows = (
+                await session.execute(
+                    select(Task.task_spec, func.count())
+                    .where(Task.status == "open")
+                    .group_by(Task.task_spec)
+                )
+            ).all()
+
+            for task_spec_json, count in rows:
+                total_open += count
+                if isinstance(task_spec_json, dict):
+                    tt = task_spec_json.get("task_type", "unknown")
+                    diff = task_spec_json.get("difficulty", "unknown")
+                    open_tasks_by_type[tt] = open_tasks_by_type.get(tt, 0) + count
+                    open_tasks_by_difficulty[diff] = open_tasks_by_difficulty.get(diff, 0) + count
+    except Exception:
+        pass  # graceful degradation — return capabilities even if DB is unavailable
+
+    return {
+        "version": _VERSION,
+        "status": "running",
+        "task_types": task_types,
+        "difficulties": difficulties,
+        "validation_methods": validation_methods,
+        "validator_types": validator_types,
+        "open_tasks": {
+            "total": total_open,
+            "by_type": open_tasks_by_type,
+            "by_difficulty": open_tasks_by_difficulty,
+        },
+    }
+
+
+@mcp.resource("agentrelay://status")
+async def server_status() -> str:
+    """AgentRelay server info and task statistics."""
+    import json
+
+    info = await discover_capabilities()
+    return json.dumps(info, indent=2)
+
+
 if __name__ == "__main__":
     mcp.run()

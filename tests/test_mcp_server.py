@@ -213,3 +213,70 @@ class TestGetAgentReputation:
         result = await get_agent_reputation(api_key=key, agent_id=str(agent.id))
         assert result["metrics"] is None
         assert "No reputation" in result["message"]
+
+
+class TestDiscoverCapabilities:
+    async def test_returns_all_fields(self):
+        from agentrelay.mcp_server import discover_capabilities
+
+        result = await discover_capabilities()
+
+        assert result["version"] == "0.5.0"
+        assert result["status"] == "running"
+        assert "data_structuring" in result["task_types"]
+        assert "research_extraction" in result["task_types"]
+        assert "coding" in result["task_types"]
+        assert "easy" in result["difficulties"]
+        assert "medium" in result["difficulties"]
+        assert "hard" in result["difficulties"]
+        assert "schema" in result["validation_methods"]
+        assert "schema+rule" in result["validation_methods"]
+        assert "schema+test" in result["validation_methods"]
+        assert "schema" in result["validator_types"]
+        assert "rule" in result["validator_types"]
+        assert result["open_tasks"]["total"] == 0
+
+    async def test_no_auth_required(self):
+        """discover_capabilities should work without any API key."""
+        from agentrelay.mcp_server import discover_capabilities
+
+        result = await discover_capabilities()
+        assert "version" in result
+        assert "task_types" in result
+
+    async def test_open_task_stats(self):
+        from agentrelay.mcp_server import discover_capabilities
+
+        agent, _key = await _create_agent("disco-agent")
+        await _create_task_row(
+            agent.id,
+            task_spec={"task_type": "coding", "difficulty": "easy", "output_schema": {}, "validation_method": "schema"},
+        )
+        await _create_task_row(
+            agent.id,
+            task_spec={"task_type": "coding", "difficulty": "hard", "output_schema": {}, "validation_method": "schema"},
+        )
+        await _create_task_row(
+            agent.id,
+            task_spec={"task_type": "research_extraction", "difficulty": "easy", "output_schema": {}, "validation_method": "schema"},
+        )
+
+        result = await discover_capabilities()
+        assert result["open_tasks"]["total"] == 3
+        assert result["open_tasks"]["by_type"]["coding"] == 2
+        assert result["open_tasks"]["by_type"]["research_extraction"] == 1
+        assert result["open_tasks"]["by_difficulty"]["easy"] == 2
+        assert result["open_tasks"]["by_difficulty"]["hard"] == 1
+
+
+class TestServerStatusResource:
+    async def test_returns_json_string(self):
+        import json
+        from agentrelay.mcp_server import server_status
+
+        raw = await server_status()
+        data = json.loads(raw)
+        assert data["version"] == "0.5.0"
+        assert data["status"] == "running"
+        assert "task_types" in data
+        assert "open_tasks" in data
