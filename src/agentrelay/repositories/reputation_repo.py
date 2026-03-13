@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,10 @@ class ReputationRepository:
         self.session = session
 
     async def create_snapshot(self, **kwargs) -> ReputationSnapshot:
+        # Set snapshot_at explicitly with microsecond precision to avoid
+        # non-deterministic ordering when server_default resolves to the same second.
+        if "snapshot_at" not in kwargs:
+            kwargs["snapshot_at"] = datetime.now(timezone.utc)
         snapshot = ReputationSnapshot(**kwargs)
         self.session.add(snapshot)
         await self.session.flush()

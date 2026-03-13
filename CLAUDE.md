@@ -5,7 +5,7 @@
 AgentRelay = Verifiable Microtask Protocol for AI Agents。多 agent 協作平台，讓 AI agent 發布、認領、執行微任務，並透過驗證引擎確保產出品質。
 
 - GitHub: mnemox-ai/AgentRelay
-- 版本: v0.5.0
+- 版本: v0.6.0
 - License: Apache-2.0
 - Default branch: `main`
 
@@ -63,6 +63,10 @@ src/agentrelay/
 - Phase 4 notification：`src/agentrelay/services/notification_service.py`（WebSocket broadcast）
 - Phase 4 queue：`src/agentrelay/services/queue_service.py`（Redis priority queue）
 - Phase 4 WebSocket：`src/agentrelay/api/routes/ws.py`（/ws endpoint）
+- Phase 5 MCP server：`src/agentrelay/mcp_server.py`（7 MCP tools + 1 resource）
+- Phase 5 MCP E2E tests：`tests/test_mcp_e2e.py`（full MCP lifecycle tests）
+- Phase 5 MCP unit tests：`tests/test_mcp_server.py`（per-tool unit tests）
+- Phase 5 SKILL.md：`.skills/agentrelay/SKILL.md`（universal agent onboarding）
 
 ## Rules
 

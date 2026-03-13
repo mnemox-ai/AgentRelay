@@ -58,9 +58,9 @@
 - ✅ Task 42: Redis priority queue
 - ✅ Task 43: Task dependencies (DAG-based workflow)
 
-## Phase 5 — MCP Server + SKILL.md (v0.6.0)
+## Phase 5 — MCP Server + SKILL.md (v0.6.0) ✅
 
 - ✅ Task 44: MCP Server (expose task CRUD + claim + submit as MCP tools)
 - ✅ Task 45: SKILL.md template (universal agent onboarding file)
 - ✅ Task 46: Agent auto-discovery via MCP protocol
-- ❌ Task 47: End-to-end: Claude Code claims + completes task via MCP
+- ✅ Task 47: End-to-end: Claude Code claims + completes task via MCP

@@ -176,7 +176,7 @@ async def get_agent_reputation(api_key: str, agent_id: str) -> dict:
         await session.close()
 
 
-_VERSION = "0.5.0"
+_VERSION = "0.6.0"
 
 
 @mcp.tool()
