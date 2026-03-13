@@ -21,6 +21,7 @@ from agentrelay.repositories.reputation_repo import ReputationRepository
 from agentrelay.services.ledger_service import LedgerService
 from agentrelay.services.reputation_service import ReputationService
 from agentrelay.services.task_service import TaskService
+from agentrelay.services.expiration_service import expire_overdue_tasks
 from agentrelay.services.validation_service import ValidationService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -126,3 +127,10 @@ async def submit_task(
         return submission
     except (ValueError, InvalidTransitionError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+@router.post("/expire", status_code=200, dependencies=[Depends(rate_limit_by_ip)])
+async def expire_tasks(db: AsyncSession = Depends(get_db)):
+    """Expire all overdue tasks. Intended for admin/cron trigger."""
+    expired = await expire_overdue_tasks(db)
+    return {"expired_count": len(expired), "expired": expired}
