@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from agentrelay.api.routes import agents, health, tasks, validation
+from agentrelay.api.routes import agents, dashboard, health, tasks, validation
 from agentrelay.config import settings
 from agentrelay.db import async_session_factory
 from agentrelay.services.expiration_service import expire_overdue_tasks
@@ -59,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(agents.router)
     app.include_router(tasks.router)
     app.include_router(validation.router)
+    app.include_router(dashboard.router)
 
     return app
 
