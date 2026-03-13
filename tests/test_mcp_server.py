@@ -221,7 +221,7 @@ class TestDiscoverCapabilities:
 
         result = await discover_capabilities()
 
-        assert result["version"] == "0.5.0"
+        assert result["version"] == "0.6.0"
         assert result["status"] == "running"
         assert "data_structuring" in result["task_types"]
         assert "research_extraction" in result["task_types"]
@@ -276,7 +276,7 @@ class TestServerStatusResource:
 
         raw = await server_status()
         data = json.loads(raw)
-        assert data["version"] == "0.5.0"
+        assert data["version"] == "0.6.0"
         assert data["status"] == "running"
         assert "task_types" in data
         assert "open_tasks" in data
