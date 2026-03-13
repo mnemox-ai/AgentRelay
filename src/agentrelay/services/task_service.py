@@ -5,9 +5,12 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from agentrelay.domain.capability import AgentCapability
 from agentrelay.domain.task_lifecycle import TaskStateMachine
+from agentrelay.domain.task_spec import TaskDifficulty, TaskType
 from agentrelay.models.task import Task
 from agentrelay.models.submission import Submission
+from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.schemas.task import TaskCreate
@@ -19,9 +22,11 @@ class TaskService:
         self,
         task_repo: TaskRepository,
         submission_repo: SubmissionRepository,
+        agent_repo: AgentRepository | None = None,
     ) -> None:
         self.task_repo = task_repo
         self.submission_repo = submission_repo
+        self.agent_repo = agent_repo
 
     async def create_task(self, data: TaskCreate) -> Task:
         deadline_at = None
@@ -63,3 +68,52 @@ class TaskService:
         now = datetime.now(timezone.utc)
         await self.task_repo.update_status(data.task_id, "submitted", submitted_at=now)
         return submission
+
+    async def match_tasks_for_agent(self, agent_id: uuid.UUID) -> list[Task]:
+        """Return available tasks filtered by agent's capabilities and quota."""
+        if self.agent_repo is None:
+            raise ValueError("AgentRepository required for capability matching")
+
+        agent = await self.agent_repo.get(agent_id)
+        if agent is None:
+            raise ValueError("Agent not found")
+
+        capability = AgentCapability.from_dict(agent.capabilities or {})
+        quota = await self.agent_repo.get_quota_profile(agent_id)
+        safe_token_cap = quota.safe_token_cap if quota else 0
+
+        all_tasks = await self.task_repo.list_available()
+        matched: list[Task] = []
+
+        for task in all_tasks:
+            spec = task.task_spec or {}
+
+            # Filter by task_type
+            raw_type = spec.get("task_type") or spec.get("type")
+            if raw_type:
+                try:
+                    task_type = TaskType(raw_type)
+                    if not capability.supports_task_type(task_type):
+                        continue
+                except ValueError:
+                    pass  # Unknown type — don't filter out
+
+            # Filter by difficulty
+            raw_diff = spec.get("difficulty")
+            if raw_diff:
+                try:
+                    difficulty = TaskDifficulty(raw_diff)
+                    if not capability.supports_difficulty(difficulty):
+                        continue
+                except ValueError:
+                    pass
+
+            # Filter by token_estimate vs safe_token_cap
+            token_estimate = spec.get("token_estimate", 0)
+            if token_estimate > 0 and safe_token_cap > 0:
+                if token_estimate > safe_token_cap:
+                    continue
+
+            matched.append(task)
+
+        return matched

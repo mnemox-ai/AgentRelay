@@ -46,8 +46,9 @@ def _collect_strings(obj: object) -> list[str]:
     return []
 
 
-def _task_service(db: AsyncSession) -> TaskService:
-    return TaskService(TaskRepository(db), SubmissionRepository(db))
+def _task_service(db: AsyncSession, with_agent_repo: bool = False) -> TaskService:
+    agent_repo = AgentRepository(db) if with_agent_repo else None
+    return TaskService(TaskRepository(db), SubmissionRepository(db), agent_repo=agent_repo)
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
@@ -72,7 +73,17 @@ async def create_task(
 
 
 @router.get("/available", response_model=list[TaskResponse], dependencies=[Depends(rate_limit_by_ip)])
-async def list_available_tasks(limit: int = 50, db: AsyncSession = Depends(get_db)):
+async def list_available_tasks(
+    limit: int = 50,
+    agent_id: uuid.UUID | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    if agent_id is not None:
+        svc = _task_service(db, with_agent_repo=True)
+        try:
+            return await svc.match_tasks_for_agent(agent_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
     svc = _task_service(db)
     return await svc.get_available_tasks(limit=limit)
 
