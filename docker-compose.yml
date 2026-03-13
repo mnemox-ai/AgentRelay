@@ -37,6 +37,12 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://agentrelay:agentrelay@postgres:5432/agentrelay
       REDIS_URL: redis://redis:6379/0
+    develop:
+      watch:
+        - action: rebuild
+          path: src/
+        - action: rebuild
+          path: pyproject.toml
 
 volumes:
   pgdata:

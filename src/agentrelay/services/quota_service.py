@@ -26,7 +26,8 @@ class QuotaService:
     def check_quota(self, quota_profile: QuotaProfile, token_estimate: int) -> bool:
         if token_estimate < 0:
             return False
-        if token_estimate > quota_profile.safe_token_cap:
+        # safe_token_cap=0 means unlimited — skip check
+        if quota_profile.safe_token_cap > 0 and token_estimate > quota_profile.safe_token_cap:
             return False
         return True
 
@@ -44,11 +45,11 @@ class QuotaService:
         if quota is None:
             return  # no quota configured — allow
 
-        # Check token cap
+        # Check token cap (0 means unlimited — skip check)
         token_estimate = (getattr(task, "task_spec", None) or {}).get(
             "token_estimate", 0
         )
-        if token_estimate > 0 and token_estimate > quota.safe_token_cap:
+        if token_estimate > 0 and quota.safe_token_cap > 0 and token_estimate > quota.safe_token_cap:
             raise QuotaExceededError(
                 f"Token budget exceeded: task requires {token_estimate} "
                 f"tokens but agent cap is {quota.safe_token_cap}"
