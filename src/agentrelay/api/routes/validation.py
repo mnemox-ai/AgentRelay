@@ -6,12 +6,11 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentrelay.api.deps import get_db
-from agentrelay.models.validation_run import ValidationRun
 from agentrelay.schemas.validation import ValidationRunResponse
+from agentrelay.services.validation_service import ValidationService
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +23,8 @@ router = APIRouter(tags=["validation"])
 )
 async def get_validation(submission_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     try:
-        stmt = select(ValidationRun).where(ValidationRun.submission_id == submission_id)
-        result = await db.execute(stmt)
-        runs = list(result.scalars().all())
+        svc = ValidationService(session=db)
+        runs = await svc.get_validation_runs(submission_id)
         if not runs:
             raise HTTPException(status_code=404, detail="No validation results found")
         return runs

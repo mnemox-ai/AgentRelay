@@ -89,6 +89,16 @@ class ValidationService:
         self.session.add(run)
         await self.session.flush()
 
+    async def get_validation_runs(self, submission_id: uuid.UUID) -> list[ValidationRun]:
+        """Retrieve all validation runs for a submission."""
+        if self.session is None:
+            return []
+        from sqlalchemy import select
+
+        stmt = select(ValidationRun).where(ValidationRun.submission_id == submission_id)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     @staticmethod
     def _merge_results(results: list[ValidationResult]) -> ValidationResult:
         """Merge multiple ValidationResults into a single aggregate result."""

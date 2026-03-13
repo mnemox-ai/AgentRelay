@@ -11,15 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentrelay.api.deps import get_db, rate_limit_by_agent, rate_limit_by_ip
 from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.models.agent import Agent
+from agentrelay.repositories.agent_repo import AgentRepository
+from agentrelay.repositories.ledger_repo import LedgerRepository
+from agentrelay.repositories.reputation_repo import ReputationRepository
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.repositories.task_repo import TaskRepository
-from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskBatchCreate, TaskClaimRequest, TaskCreate, TaskResponse
 from agentrelay.security.task_sanitizer import scan_input
 from agentrelay.security.output_sanitizer import scan_output
-from agentrelay.repositories.ledger_repo import LedgerRepository
-from agentrelay.repositories.reputation_repo import ReputationRepository
 from agentrelay.services.ledger_service import LedgerService
 from agentrelay.services.reputation_service import ReputationService
 from agentrelay.services.task_service import TaskService
@@ -28,7 +28,6 @@ from agentrelay.services.expiration_service import expire_overdue_tasks
 from agentrelay.services.notification_service import notification_service
 from agentrelay.services.validation_service import ValidationService
 from agentrelay.services.queue_service import QueueService, get_redis
-from agentrelay.domain.task_spec import TaskStatus
 from agentrelay.config import settings
 
 logger = logging.getLogger(__name__)
@@ -53,9 +52,25 @@ def _collect_strings(obj: object) -> list[str]:
     return []
 
 
-def _task_service(db: AsyncSession, with_agent_repo: bool = False) -> TaskService:
-    agent_repo = AgentRepository(db) if with_agent_repo else None
-    return TaskService(TaskRepository(db), SubmissionRepository(db), agent_repo=agent_repo)
+def _task_service(db: AsyncSession, full: bool = False) -> TaskService:
+    """Build a TaskService with all required dependencies.
+
+    When full=True, includes validation, ledger, reputation, and quota services
+    needed for submit and claim flows.
+    """
+    task_repo = TaskRepository(db)
+    agent_repo = AgentRepository(db)
+    kwargs: dict = {
+        "task_repo": task_repo,
+        "submission_repo": SubmissionRepository(db),
+        "agent_repo": agent_repo,
+    }
+    if full:
+        kwargs["validation_svc"] = ValidationService(session=db)
+        kwargs["ledger_svc"] = LedgerService(LedgerRepository(db))
+        kwargs["reputation_svc"] = ReputationService(ReputationRepository(db))
+        kwargs["quota_svc"] = QuotaService(task_repo=task_repo, agent_repo=agent_repo)
+    return TaskService(**kwargs)
 
 
 @router.post("", response_model=TaskResponse, status_code=201)
@@ -138,8 +153,9 @@ async def list_available_tasks(
     agent_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
 ):
+    svc = _task_service(db)
+
     if agent_id is not None:
-        svc = _task_service(db, with_agent_repo=True)
         try:
             return await svc.match_tasks_for_agent(agent_id)
         except ValueError as exc:
@@ -152,12 +168,7 @@ async def list_available_tasks(
             queue_svc = QueueService(redis_client)
             task_ids = await queue_svc.top_n(limit)
             if task_ids:
-                repo = TaskRepository(db)
-                tasks = []
-                for tid in task_ids:
-                    task = await repo.get(uuid.UUID(tid))
-                    if task is not None and task.status == TaskStatus.OPEN.value:
-                        tasks.append(task)
+                tasks = await svc.get_open_tasks_by_ids([uuid.UUID(tid) for tid in task_ids])
                 if tasks:
                     return tasks
         finally:
@@ -165,14 +176,13 @@ async def list_available_tasks(
     except Exception:
         logger.warning("Redis unavailable — falling back to DB for available tasks")
 
-    svc = _task_service(db)
     return await svc.get_available_tasks(limit=limit)
 
 
 @router.get("/{task_id}", response_model=TaskResponse, dependencies=[Depends(rate_limit_by_ip)])
 async def get_task(task_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    repo = TaskRepository(db)
-    task = await repo.get(task_id)
+    svc = _task_service(db)
+    task = await svc.get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
@@ -185,23 +195,14 @@ async def claim_task(
     _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
-    # Check quota (token cap + daily budget) before allowing claim
-    task_repo = TaskRepository(db)
-    task = await task_repo.get(task_id)
-    if task is not None:
-        agent_repo = AgentRepository(db)
-        quota_svc = QuotaService(task_repo=task_repo, agent_repo=agent_repo)
-        try:
-            await quota_svc.check_and_deduct_quota(body.agent_id, task)
-        except QuotaExceededError as exc:
-            raise HTTPException(status_code=403, detail=str(exc))
-
-    svc = _task_service(db)
+    svc = _task_service(db, full=True)
     try:
-        task = await svc.claim_task(task_id, body.agent_id)
+        task = await svc.claim_task_with_quota(task_id, body.agent_id)
         await db.refresh(task)
         await notification_service.broadcast("task_claimed", {"task_id": str(task.id), "status": task.status, "agent_id": str(body.agent_id)})
         return task
+    except QuotaExceededError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     except (ValueError, InvalidTransitionError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
@@ -223,36 +224,12 @@ async def submit_task(
                 detail=f"Output blocked by security scanner: {scan_result.flagged_patterns}",
             )
 
-    svc = _task_service(db)
-    task_repo = TaskRepository(db)
+    svc = _task_service(db, full=True)
     try:
-        submission = await svc.submit_task(body)
+        submission, final_status = await svc.submit_and_process(body)
 
-        # Transition to validating
-        task = await task_repo.get(body.task_id)
-        await task_repo.update_status(body.task_id, TaskStatus.VALIDATING.value)
-
-        # Run automated validation pipeline
-        validation_svc = ValidationService(session=db)
-        result = await validation_svc.validate_submission(submission, task)
-
-        # Update task status based on validation outcome
-        final_status = TaskStatus.COMPLETED.value if result.passed else TaskStatus.FAILED.value
-        await task_repo.update_status(body.task_id, final_status)
-
-        event_type = "task_completed" if result.passed else "task_failed"
+        event_type = "task_completed" if final_status == "completed" else "task_failed"
         await notification_service.broadcast(event_type, {"task_id": str(body.task_id), "status": final_status})
-
-        # Post-validation: ledger + reputation updates
-        ledger_svc = LedgerService(LedgerRepository(db))
-        reputation_svc = ReputationService(ReputationRepository(db))
-
-        if result.passed:
-            await ledger_svc.record_reward(body.agent_id, body.task_id, task.reward)
-        else:
-            await ledger_svc.record_penalty(body.agent_id, body.task_id, task.reward)
-
-        await reputation_svc.update_reputation(body.agent_id, result)
 
         await db.refresh(submission)
         return submission
