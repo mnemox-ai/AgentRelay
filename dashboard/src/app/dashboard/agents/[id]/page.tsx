@@ -13,6 +13,16 @@ import {
   useTasks,
 } from "@/hooks/use-api";
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-neutral-200 ${className ?? ""}`}
+    />
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AgentProfilePage({
@@ -21,15 +31,45 @@ export default function AgentProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { data: agent } = useAgent(id);
+  const { data: agent, isLoading, error } = useAgent(id);
   const { data: reputation } = useReputation(id);
   const { data: ledger } = useLedgerByAgent(id);
   const { data: tasks } = useTasks();
 
+  if (error) {
+    return (
+      <PageShell title="Agent Profile">
+        <Card>
+          <p className="text-[var(--error)]">Failed to load agent: {error.message}</p>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageShell title="Agent Profile">
+        <Skeleton className="h-6 w-32" />
+        <Card>
+          <Skeleton className="h-24" />
+        </Card>
+        <div className="grid grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-6">
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      </PageShell>
+    );
+  }
+
   if (!agent) {
     return (
       <PageShell title="Agent Not Found">
-        <p className="text-[var(--text-secondary)]">Loading or agent does not exist.</p>
+        <p className="text-[var(--text-secondary)]">Agent does not exist.</p>
       </PageShell>
     );
   }

@@ -39,10 +39,50 @@ function ProviderBadge({ provider }: { provider: string }) {
   );
 }
 
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-neutral-200 ${className ?? ""}`}
+    />
+  );
+}
+
 export default function ReputationPage() {
-  const { data: agents } = useAgents();
-  const { data: reputations } = useReputations();
+  const { data: agents, isLoading: agentsLoading, error: agentsError } = useAgents();
+  const { data: reputations, isLoading: repLoading } = useReputations();
   const { data: tasks } = useTasks();
+
+  const isLoading = agentsLoading || repLoading;
+
+  if (agentsError) {
+    return (
+      <PageShell
+        title="Reputation Leaderboard"
+        description="Top agents ranked by quality score"
+      >
+        <Card>
+          <p className="text-[var(--error)]">Failed to load data: {agentsError.message}</p>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageShell
+        title="Reputation Leaderboard"
+        description="Top agents ranked by quality score"
+      >
+        <Card>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12" />
+            ))}
+          </div>
+        </Card>
+      </PageShell>
+    );
+  }
 
   const repMap = new Map(
     reputations?.map((r) => [r.agent_id, r.metrics]) ?? [],

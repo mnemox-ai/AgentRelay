@@ -4,8 +4,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
-import { useTasks, useAgents, useLedger, useReputations } from "@/hooks/use-api";
-import { mockSubmissions, mockValidationRuns } from "@/lib/mock-data";
+import { useRecentTasks, useAgents, useStats, useValidationRate } from "@/hooks/use-api";
 
 // ─── Type badge ──────────────────────────────────────────────────────────────
 
@@ -27,78 +26,55 @@ function TypeBadge({ type }: { type: string }) {
   );
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Skeleton ────────────────────────────────────────────────────────────────
 
-function getTaskScore(taskId: string): number | null {
-  const subs = mockSubmissions.filter((s) => s.task_id === taskId);
-  if (subs.length === 0) return null;
-  const runs = mockValidationRuns.filter((v) =>
-    subs.some((s) => s.id === v.submission_id),
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-neutral-200 ${className ?? ""}`}
+    />
   );
-  if (runs.length === 0) return null;
-  return runs.reduce((sum, r) => sum + r.score, 0) / runs.length;
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data: tasks } = useTasks();
+  const { data: stats, isLoading: statsLoading, error: statsError } = useStats();
+  const { data: recentTasks, isLoading: tasksLoading, error: tasksError } = useRecentTasks();
   const { data: agents } = useAgents();
-  const { data: ledger } = useLedger();
-  const { data: reputations } = useReputations();
+  const { data: validationRate, isLoading: vrLoading } = useValidationRate();
 
-  // Stat cards
-  const totalTasks = tasks?.length ?? 0;
-  const completedTasks =
-    tasks?.filter((t) => t.status === "completed").length ?? 0;
-  const activeAgents =
-    agents?.filter((a) => a.status === "active").length ?? 0;
-  const totalRewards =
-    ledger
-      ?.filter((e) => e.entry_type === "reward")
-      .reduce((sum, e) => sum + e.amount, 0) ?? 0;
-
-  // Recent 5 tasks (newest first)
-  const recentTasks = tasks
-    ? [...tasks]
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime(),
-        )
-        .slice(0, 5)
-    : [];
-
-  // Agent name lookup
   const agentMap = new Map(agents?.map((a) => [a.id, a.name]) ?? []);
 
-  // Validation pass rate (aggregate)
-  const passRate =
-    mockValidationRuns.length > 0
-      ? mockValidationRuns.filter((v) => v.passed).length /
-        mockValidationRuns.length
-      : 0;
-
-  // Top 3 agents by quality_score
-  const topAgents = reputations
-    ? [...reputations]
-        .sort((a, b) => b.metrics.quality_score - a.metrics.quality_score)
-        .slice(0, 3)
-        .map((r) => ({
-          name: agentMap.get(r.agent_id) ?? r.agent_id,
-          pass_rate: r.metrics.pass_rate,
-          quality_score: r.metrics.quality_score,
-        }))
-    : [];
+  const error = statsError || tasksError;
+  if (error) {
+    return (
+      <PageShell title="Overview" description="Platform health and activity summary">
+        <Card>
+          <p className="text-[var(--error)]">Failed to load dashboard: {error.message}</p>
+        </Card>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="Overview" description="Platform health and activity summary">
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-4 gap-6">
-        <StatCard label="Total Tasks" value={totalTasks} />
-        <StatCard label="Completed" value={completedTasks} />
-        <StatCard label="Active Agents" value={activeAgents} />
-        <StatCard label="Total Rewards" value={`$${totalRewards.toFixed(0)}`} />
+        {statsLoading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))}
+          </>
+        ) : (
+          <>
+            <StatCard label="Total Tasks" value={stats?.total_tasks ?? 0} />
+            <StatCard label="Completed" value={stats?.completed_tasks ?? 0} />
+            <StatCard label="Active Agents" value={stats?.active_agents ?? 0} />
+            <StatCard label="Total Rewards" value={`$${(stats?.total_rewards ?? 0).toFixed(0)}`} />
+          </>
+        )}
       </div>
 
       {/* ── Recent Tasks ── */}
@@ -106,20 +82,24 @@ export default function DashboardPage() {
         <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
           Recent Tasks
         </h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-left text-[var(--text-tertiary)]">
-              <th className="pb-3 font-medium">Type</th>
-              <th className="pb-3 font-medium">Status</th>
-              <th className="pb-3 font-medium">Agent</th>
-              <th className="pb-3 font-medium text-right">Score</th>
-              <th className="pb-3 font-medium text-right">Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentTasks.map((task) => {
-              const score = getTaskScore(task.id);
-              return (
+        {tasksLoading ? (
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-10" />
+            ))}
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-left text-[var(--text-tertiary)]">
+                <th className="pb-3 font-medium">Type</th>
+                <th className="pb-3 font-medium">Status</th>
+                <th className="pb-3 font-medium">Agent</th>
+                <th className="pb-3 font-medium text-right">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(recentTasks ?? []).map((task) => (
                 <tr
                   key={task.id}
                   className="border-b border-[var(--border)] last:border-0"
@@ -135,9 +115,6 @@ export default function DashboardPage() {
                       ? (agentMap.get(task.claimed_by) ?? "\u2014")
                       : "\u2014"}
                   </td>
-                  <td className="py-3 text-right font-mono text-[var(--text-primary)]">
-                    {score !== null ? `${(score * 100).toFixed(0)}%` : "\u2014"}
-                  </td>
                   <td className="py-3 text-right text-[var(--text-secondary)]">
                     {new Date(task.created_at).toLocaleDateString("en-US", {
                       month: "short",
@@ -147,10 +124,20 @@ export default function DashboardPage() {
                     })}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+              {recentTasks?.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="py-8 text-center text-[var(--text-tertiary)]"
+                  >
+                    No recent tasks
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </Card>
 
       {/* ── Bottom: Pass Rate + Top Agents ── */}
@@ -159,50 +146,63 @@ export default function DashboardPage() {
           <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
             Validation Pass Rate
           </h2>
-          <p className="text-5xl font-semibold font-mono text-[var(--text-primary)]">
-            {(passRate * 100).toFixed(0)}%
-          </p>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            {mockValidationRuns.filter((v) => v.passed).length} passed /{" "}
-            {mockValidationRuns.length} total runs
-          </p>
+          {vrLoading ? (
+            <Skeleton className="h-16 w-32" />
+          ) : (
+            <>
+              <p className="text-5xl font-semibold font-mono text-[var(--text-primary)]">
+                {((validationRate?.pass_rate ?? 0) * 100).toFixed(0)}%
+              </p>
+              <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                {validationRate?.passed ?? 0} passed / {validationRate?.total ?? 0} total runs
+              </p>
+            </>
+          )}
         </Card>
 
         <Card>
           <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
             Top Agents
           </h2>
-          <div className="space-y-4">
-            {topAgents.map((agent, i) => (
-              <div
-                key={agent.name}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-xs font-medium text-[var(--text-secondary)]">
-                    {i + 1}
-                  </span>
-                  <span className="font-medium text-[var(--text-primary)]">
-                    {agent.name}
-                  </span>
-                </div>
-                <div className="flex gap-4 text-sm">
-                  <span className="text-[var(--text-secondary)]">
-                    Pass{" "}
-                    <span className="font-mono text-[var(--text-primary)]">
-                      {(agent.pass_rate * 100).toFixed(0)}%
+          {statsLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-8" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(stats?.top_agents ?? []).map((agent, i) => (
+                <div
+                  key={agent.name}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-xs font-medium text-[var(--text-secondary)]">
+                      {i + 1}
                     </span>
-                  </span>
-                  <span className="text-[var(--text-secondary)]">
-                    Quality{" "}
-                    <span className="font-mono text-[var(--text-primary)]">
-                      {(agent.quality_score * 100).toFixed(0)}%
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {agent.name}
                     </span>
-                  </span>
+                  </div>
+                  <div className="flex gap-4 text-sm">
+                    <span className="text-[var(--text-secondary)]">
+                      Pass{" "}
+                      <span className="font-mono text-[var(--text-primary)]">
+                        {(agent.pass_rate * 100).toFixed(0)}%
+                      </span>
+                    </span>
+                    <span className="text-[var(--text-secondary)]">
+                      Quality{" "}
+                      <span className="font-mono text-[var(--text-primary)]">
+                        {(agent.quality_score * 100).toFixed(0)}%
+                      </span>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </PageShell>

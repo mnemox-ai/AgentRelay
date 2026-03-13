@@ -1,105 +1,76 @@
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
-import {
-  type AgentResponse,
-  type TaskResponse,
-  type SubmissionResponse,
-  type ValidationRunResponse,
-  type ReputationResponse,
-  type LedgerEntry,
-  mockAgents,
-  mockTasks,
-  mockSubmissions,
-  mockValidationRuns,
-  mockReputationSnapshots,
-  mockLedgerEntries,
-  getMockAgent,
-  getMockTask,
-  getMockSubmissionsByTask,
-  getMockValidationsBySubmission,
-  getMockReputationByAgent,
-  getMockLedgerByAgent,
+import type {
+  SubmissionResponse,
+  ValidationRunResponse,
+  ReputationResponse,
+  LedgerEntry,
 } from "@/lib/mock-data";
 
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
-
-function useMockOrFetch<T>(key: string, mockData: T) {
-  return useSWR<T>(
-    key,
-    USE_MOCK ? () => Promise.resolve(mockData) : fetcher<T>,
-  );
-}
-
-// ─── Agents ────────────────────────────────────────────────────────────────
-
-export function useAgents() {
-  return useMockOrFetch<AgentResponse[]>("/agents", mockAgents);
-}
-
-export function useAgent(id: string | undefined) {
-  return useMockOrFetch<AgentResponse | undefined>(
-    id ? `/agents/${id}` : "",
-    id ? getMockAgent(id) : undefined,
-  );
-}
-
-// ─── Tasks ─────────────────────────────────────────────────────────────────
-
-export function useTasks() {
-  return useMockOrFetch<TaskResponse[]>("/tasks/available", mockTasks);
-}
-
-export function useTask(id: string | undefined) {
-  return useMockOrFetch<TaskResponse | undefined>(
-    id ? `/tasks/${id}` : "",
-    id ? getMockTask(id) : undefined,
-  );
-}
+// Re-export from separate hook files
+export { useAgents, useAgent } from "./use-agents";
+export { useTasks, useTask, useRecentTasks } from "./use-tasks";
+export { useStats, useValidationRate } from "./use-stats";
 
 // ─── Submissions ───────────────────────────────────────────────────────────
 
 export function useSubmissions() {
-  return useMockOrFetch<SubmissionResponse[]>("/submissions", mockSubmissions);
+  return useSWR<SubmissionResponse[]>("/submissions", fetcher);
 }
 
 export function useSubmissionsByTask(taskId: string | undefined) {
-  return useMockOrFetch<SubmissionResponse[]>(
-    taskId ? `/tasks/${taskId}/submissions` : "",
-    taskId ? getMockSubmissionsByTask(taskId) : [],
+  return useSWR<SubmissionResponse[]>(
+    taskId ? `/tasks/${taskId}/submissions` : null,
+    fetcher,
   );
 }
 
 // ─── Validation Runs ───────────────────────────────────────────────────────
 
 export function useValidationRuns(submissionId: string | undefined) {
-  return useMockOrFetch<ValidationRunResponse[]>(
-    submissionId ? `/submissions/${submissionId}/validation` : "",
-    submissionId ? getMockValidationsBySubmission(submissionId) : [],
+  return useSWR<ValidationRunResponse[]>(
+    submissionId ? `/submissions/${submissionId}/validation` : null,
+    fetcher,
   );
+}
+
+export function useValidationRunsForSubmissions(submissionIds: string[]) {
+  const key =
+    submissionIds.length > 0
+      ? `validation-runs:${[...submissionIds].sort().join(",")}`
+      : null;
+  return useSWR<ValidationRunResponse[]>(key, async () => {
+    const results = await Promise.all(
+      submissionIds.map((id) =>
+        fetcher<ValidationRunResponse[]>(`/submissions/${id}/validation`),
+      ),
+    );
+    return results.flat();
+  });
 }
 
 // ─── Reputation ────────────────────────────────────────────────────────────
 
 export function useReputations() {
-  return useMockOrFetch<ReputationResponse[]>("/reputation", mockReputationSnapshots);
+  return useSWR<ReputationResponse[]>("/reputation", fetcher);
 }
 
 export function useReputation(agentId: string | undefined) {
-  return useMockOrFetch<ReputationResponse | undefined>(
-    agentId ? `/reputation/${agentId}` : "",
-    agentId ? getMockReputationByAgent(agentId) : undefined,
+  return useSWR<ReputationResponse>(
+    agentId ? `/reputation/${agentId}` : null,
+    fetcher,
   );
 }
 
 // ─── Ledger ────────────────────────────────────────────────────────────────
 
 export function useLedger() {
-  return useMockOrFetch<LedgerEntry[]>("/ledger", mockLedgerEntries);
+  return useSWR<LedgerEntry[]>("/ledger", fetcher);
 }
 
 export function useLedgerByAgent(agentId: string | undefined) {
-  return useMockOrFetch<LedgerEntry[]>(
-    agentId ? `/ledger/${agentId}` : "",
-    agentId ? getMockLedgerByAgent(agentId) : [],
+  return useSWR<LedgerEntry[]>(
+    agentId ? `/ledger/${agentId}` : null,
+    fetcher,
   );
 }

@@ -32,13 +32,47 @@ function PassRateBar({ rate }: { rate: number }) {
   );
 }
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-neutral-200 ${className ?? ""}`}
+    />
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AgentsPage() {
-  const { data: agents } = useAgents();
+  const { data: agents, isLoading, error } = useAgents();
   const { data: reputations } = useReputations();
   const { data: ledger } = useLedger();
   const { data: tasks } = useTasks();
+
+  if (error) {
+    return (
+      <PageShell title="Agents" description="Registered agents and performance overview">
+        <Card>
+          <p className="text-[var(--error)]">Failed to load agents: {error.message}</p>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageShell title="Agents" description="Registered agents and performance overview">
+        <Card>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12" />
+            ))}
+          </div>
+        </Card>
+      </PageShell>
+    );
+  }
 
   // Build lookup maps
   const repMap = new Map(reputations?.map((r) => [r.agent_id, r.metrics]) ?? []);

@@ -51,15 +51,50 @@ function DifficultyBadge({ level }: { level: string }) {
 const TABS = ["all", "open", "claimed", "completed", "failed"] as const;
 type Tab = (typeof TABS)[number];
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-neutral-200 ${className ?? ""}`}
+    />
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function TasksPage() {
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const router = useRouter();
-  const { data: tasks } = useTasks();
+  const { data: tasks, isLoading, error } = useTasks();
   const { data: agents } = useAgents();
 
   const agentMap = new Map(agents?.map((a) => [a.id, a.name]) ?? []);
+
+  if (error) {
+    return (
+      <PageShell title="Tasks" description="Browse and filter all tasks">
+        <Card>
+          <p className="text-[var(--error)]">Failed to load tasks: {error.message}</p>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageShell title="Tasks" description="Browse and filter all tasks">
+        <Skeleton className="h-10 w-96" />
+        <Card>
+          <div className="space-y-3">
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-12" />
+            ))}
+          </div>
+        </Card>
+      </PageShell>
+    );
+  }
 
   const filteredTasks = tasks
     ? activeTab === "all"

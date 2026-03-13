@@ -9,11 +9,9 @@ import {
   useTask,
   useAgents,
   useSubmissionsByTask,
+  useValidationRunsForSubmissions,
 } from "@/hooks/use-api";
-import {
-  mockValidationRuns,
-  type ValidationRunResponse,
-} from "@/lib/mock-data";
+import type { ValidationRunResponse } from "@/lib/mock-data";
 
 // ─── Type badge ──────────────────────────────────────────────────────────────
 
@@ -160,6 +158,62 @@ function StatusTimeline({
   );
 }
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded bg-neutral-200 ${className ?? ""}`}
+    />
+  );
+}
+
+// ─── Validation Runs List ────────────────────────────────────────────────────
+
+function ValidationRunsList({ runs }: { runs: ValidationRunResponse[] }) {
+  if (runs.length === 0) {
+    return (
+      <p className="text-sm text-[var(--text-tertiary)]">
+        No validation runs yet
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {runs.map((run) => (
+        <div
+          key={run.id}
+          className="rounded-lg border border-[var(--border)] p-3"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <ValidatorBadge type={run.validator_type} />
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-xs font-medium ${
+                  run.passed
+                    ? "text-[var(--success)]"
+                    : "text-[var(--error)]"
+                }`}
+              >
+                {run.passed ? "PASSED" : "FAILED"}
+              </span>
+              <span className="font-mono text-sm font-medium text-[var(--text-primary)]">
+                {(run.score * 100).toFixed(0)}%
+              </span>
+            </div>
+          </div>
+          <pre className="overflow-x-auto rounded bg-neutral-50 p-2 text-[10px] font-mono text-[var(--text-secondary)] border border-[var(--border)]">
+            <code>
+              {JSON.stringify(run.details, null, 2)}
+            </code>
+          </pre>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function TaskDetailPage({
@@ -168,22 +222,49 @@ export default function TaskDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { data: task } = useTask(id);
+  const { data: task, isLoading: taskLoading, error: taskError } = useTask(id);
   const { data: agents } = useAgents();
   const { data: submissions } = useSubmissionsByTask(id);
 
+  const submissionIds = submissions?.map((s) => s.id) ?? [];
+  const { data: validationRuns } = useValidationRunsForSubmissions(submissionIds);
+
   const agentMap = new Map(agents?.map((a) => [a.id, a.name]) ?? []);
 
-  // Collect all validation runs for this task's submissions
-  const submissionIds = new Set(submissions?.map((s) => s.id) ?? []);
-  const validationRuns: ValidationRunResponse[] = mockValidationRuns.filter(
-    (v) => submissionIds.has(v.submission_id),
-  );
+  if (taskError) {
+    return (
+      <PageShell title="Task Detail">
+        <Card>
+          <p className="text-[var(--error)]">Failed to load task: {taskError.message}</p>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  if (taskLoading) {
+    return (
+      <PageShell title="Task Detail">
+        <Skeleton className="h-6 w-32" />
+        <Card>
+          <Skeleton className="h-16" />
+        </Card>
+        <div className="grid grid-cols-5 gap-6">
+          <div className="col-span-3">
+            <Skeleton className="h-64 rounded-xl" />
+          </div>
+          <div className="col-span-2 space-y-6">
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
 
   if (!task) {
     return (
       <PageShell title="Task Not Found">
-        <p className="text-[var(--text-secondary)]">Loading or task does not exist.</p>
+        <p className="text-[var(--text-secondary)]">Task does not exist.</p>
       </PageShell>
     );
   }
@@ -362,49 +443,13 @@ export default function TaskDetailPage({
           <Card>
             <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
               Validation Runs
-              {validationRuns.length > 0 && (
+              {validationRuns && validationRuns.length > 0 && (
                 <span className="ml-2 text-sm font-normal text-[var(--text-tertiary)]">
                   ({validationRuns.length})
                 </span>
               )}
             </h2>
-            {validationRuns.length > 0 ? (
-              <div className="space-y-3">
-                {validationRuns.map((run) => (
-                  <div
-                    key={run.id}
-                    className="rounded-lg border border-[var(--border)] p-3"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <ValidatorBadge type={run.validator_type} />
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-xs font-medium ${
-                            run.passed
-                              ? "text-[var(--success)]"
-                              : "text-[var(--error)]"
-                          }`}
-                        >
-                          {run.passed ? "PASSED" : "FAILED"}
-                        </span>
-                        <span className="font-mono text-sm font-medium text-[var(--text-primary)]">
-                          {(run.score * 100).toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                    <pre className="overflow-x-auto rounded bg-neutral-50 p-2 text-[10px] font-mono text-[var(--text-secondary)] border border-[var(--border)]">
-                      <code>
-                        {JSON.stringify(run.details, null, 2)}
-                      </code>
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-[var(--text-tertiary)]">
-                No validation runs yet
-              </p>
-            )}
+            <ValidationRunsList runs={validationRuns ?? []} />
           </Card>
         </div>
       </div>
