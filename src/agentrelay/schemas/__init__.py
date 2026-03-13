@@ -4,6 +4,7 @@ from .agent import AgentRegister, AgentResponse
 from .reputation import ReputationResponse
 from .submission import SubmissionCreate, SubmissionResponse
 from .task import TaskClaimRequest, TaskCreate, TaskResponse
+from .validation import ValidationRunResponse
 
 __all__ = [
     "AgentRegister",
@@ -14,4 +15,5 @@ __all__ = [
     "TaskClaimRequest",
     "TaskCreate",
     "TaskResponse",
+    "ValidationRunResponse",
 ]

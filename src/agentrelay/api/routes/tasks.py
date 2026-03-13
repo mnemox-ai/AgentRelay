@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agentrelay.api.deps import get_db
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.repositories.task_repo import TaskRepository
+from agentrelay.repositories.agent_repo import AgentRepository
 from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
+from agentrelay.security.token_limiter import check_token_budget
 from agentrelay.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -34,8 +36,32 @@ async def list_available_tasks(limit: int = 50, db: AsyncSession = Depends(get_d
     return await svc.get_available_tasks(limit=limit)
 
 
+@router.get("/{task_id}", response_model=TaskResponse)
+async def get_task(task_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    repo = TaskRepository(db)
+    task = await repo.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+
 @router.post("/{task_id}/claim", response_model=TaskResponse)
 async def claim_task(task_id: uuid.UUID, body: TaskClaimRequest, db: AsyncSession = Depends(get_db)):
+    # Check token budget before allowing claim
+    task_repo = TaskRepository(db)
+    task = await task_repo.get(task_id)
+    if task is not None:
+        token_estimate = (task.task_spec or {}).get("token_estimate", 0)
+        if token_estimate > 0:
+            agent_repo = AgentRepository(db)
+            quota = await agent_repo.get_quota_profile(body.agent_id)
+            if quota is not None:
+                if not check_token_budget(token_estimate, quota.safe_token_cap):
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Token budget exceeded: task requires {token_estimate} tokens but agent cap is {quota.safe_token_cap}",
+                    )
+
     svc = _task_service(db)
     try:
         task = await svc.claim_task(task_id, body.agent_id)

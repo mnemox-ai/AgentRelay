@@ -30,9 +30,9 @@ class ReputationService:
                 "quality_score": 0.0,
             }
 
-        total = prev["total_submissions"] + 1
-        passed = prev["passed"] + (1 if validation_result.passed else 0)
-        failed = prev["failed"] + (0 if validation_result.passed else 1)
+        total = prev.get("total_submissions", 0) + 1
+        passed = prev.get("passed", 0) + (1 if validation_result.passed else 0)
+        failed = prev.get("failed", 0) + (0 if validation_result.passed else 1)
         pass_rate = passed / total if total > 0 else 0.0
         quality_score = pass_rate * 100.0
 

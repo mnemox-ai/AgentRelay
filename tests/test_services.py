@@ -368,6 +368,110 @@ class TestReputationService:
         assert metrics["failed"] == 2
         assert metrics["pass_rate"] == round(9 / 11, 4)
 
+    @pytest.mark.asyncio
+    async def test_partial_metrics_dict(self):
+        """prev metrics with missing keys should not raise KeyError."""
+        svc, repo = self._build()
+        # Simulate a snapshot with only some keys present
+        existing = _make_reputation_snapshot(metrics={"total_submissions": 3})
+        repo.get_latest.return_value = existing
+        repo.create_snapshot.return_value = _make_reputation_snapshot()
+
+        vr = ValidationResult(passed=True, score=1.0, validator_type=ValidatorType.SCHEMA, details="ok")
+        await svc.update_reputation(uuid.uuid4(), vr)
+
+        call_kwargs = repo.create_snapshot.call_args.kwargs
+        metrics = call_kwargs["metrics"]
+        assert metrics["total_submissions"] == 4
+        assert metrics["passed"] == 1
+        assert metrics["failed"] == 0
+
+    @pytest.mark.asyncio
+    async def test_empty_metrics_dict(self):
+        """prev metrics as empty dict should not raise KeyError."""
+        svc, repo = self._build()
+        existing = _make_reputation_snapshot()
+        existing.metrics = {}  # override after creation to bypass falsy check
+        repo.get_latest.return_value = existing
+        repo.create_snapshot.return_value = _make_reputation_snapshot()
+
+        vr = ValidationResult(passed=False, score=0.0, validator_type=ValidatorType.SCHEMA, details="bad")
+        await svc.update_reputation(uuid.uuid4(), vr)
+
+        call_kwargs = repo.create_snapshot.call_args.kwargs
+        metrics = call_kwargs["metrics"]
+        assert metrics["total_submissions"] == 1
+        assert metrics["passed"] == 0
+        assert metrics["failed"] == 1
+
+
+# ---------------------------------------------------------------------------
+# AgentRepository.get_quota_profile
+# ---------------------------------------------------------------------------
+
+class TestGetQuotaProfile:
+    @pytest.mark.asyncio
+    async def test_full_quota_profile(self):
+        from agentrelay.repositories.agent_repo import AgentRepository
+
+        session = AsyncMock()
+        repo = AgentRepository(session)
+        agent = MagicMock()
+        agent.quota_profile = {
+            "provider": "anthropic",
+            "model": "haiku",
+            "executor_type": "free_tier",
+            "plan_type": "basic",
+            "daily_task_budget": 50,
+            "safe_token_cap": 8000,
+        }
+        session.get.return_value = agent
+
+        profile = await repo.get_quota_profile(uuid.uuid4())
+        assert profile.provider == "anthropic"
+        assert profile.safe_token_cap == 8000
+        assert profile.daily_task_budget == 50
+
+    @pytest.mark.asyncio
+    async def test_partial_quota_profile_defaults(self):
+        from agentrelay.repositories.agent_repo import AgentRepository
+
+        session = AsyncMock()
+        repo = AgentRepository(session)
+        agent = MagicMock()
+        agent.quota_profile = {"safe_token_cap": 1000}
+        session.get.return_value = agent
+
+        profile = await repo.get_quota_profile(uuid.uuid4())
+        assert profile.provider == "unknown"
+        assert profile.model == "unknown"
+        assert profile.safe_token_cap == 1000
+        assert profile.daily_task_budget == 0
+
+    @pytest.mark.asyncio
+    async def test_empty_quota_profile(self):
+        from agentrelay.repositories.agent_repo import AgentRepository
+
+        session = AsyncMock()
+        repo = AgentRepository(session)
+        agent = MagicMock()
+        agent.quota_profile = {}
+        session.get.return_value = agent
+
+        profile = await repo.get_quota_profile(uuid.uuid4())
+        assert profile.safe_token_cap == 0
+
+    @pytest.mark.asyncio
+    async def test_none_agent(self):
+        from agentrelay.repositories.agent_repo import AgentRepository
+
+        session = AsyncMock()
+        repo = AgentRepository(session)
+        session.get.return_value = None
+
+        profile = await repo.get_quota_profile(uuid.uuid4())
+        assert profile is None
+
 
 # ---------------------------------------------------------------------------
 # QuotaService

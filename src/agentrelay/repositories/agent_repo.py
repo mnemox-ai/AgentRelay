@@ -7,6 +7,7 @@ import uuid
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from agentrelay.domain.quota_profile import QuotaProfile
 from agentrelay.models.agent import Agent
 
 
@@ -27,6 +28,20 @@ class AgentRepository:
         stmt = select(Agent).where(Agent.name == name)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_quota_profile(self, agent_id: uuid.UUID) -> QuotaProfile | None:
+        agent = await self.get(agent_id)
+        if agent is None:
+            return None
+        raw = agent.quota_profile or {}
+        return QuotaProfile(
+            provider=raw.get("provider", "unknown"),
+            model=raw.get("model", "unknown"),
+            executor_type=raw.get("executor_type", "free_tier"),
+            plan_type=raw.get("plan_type", "basic"),
+            daily_task_budget=raw.get("daily_task_budget", 0),
+            safe_token_cap=raw.get("safe_token_cap", 0),
+        )
 
     async def update(self, agent_id: uuid.UUID, **kwargs) -> Agent | None:
         stmt = update(Agent).where(Agent.id == agent_id).values(**kwargs)
