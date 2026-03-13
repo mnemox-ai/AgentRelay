@@ -10,8 +10,6 @@ import logging
 from agentrelay.domain.capability import AgentCapability
 from agentrelay.domain.task_lifecycle import TaskStateMachine
 from agentrelay.domain.task_spec import TaskDifficulty, TaskStatus, TaskType
-
-logger = logging.getLogger(__name__)
 from agentrelay.models.task import Task
 from agentrelay.models.submission import Submission
 from agentrelay.repositories.agent_repo import AgentRepository
@@ -19,6 +17,8 @@ from agentrelay.repositories.task_repo import TaskRepository
 from agentrelay.repositories.submission_repo import SubmissionRepository
 from agentrelay.schemas.task import TaskCreate
 from agentrelay.schemas.submission import SubmissionCreate
+
+logger = logging.getLogger(__name__)
 
 if __import__("typing").TYPE_CHECKING:
     from agentrelay.services.ledger_service import LedgerService
