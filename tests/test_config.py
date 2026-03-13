@@ -8,7 +8,7 @@ class TestSettings:
         s = Settings(DATABASE_URL="postgresql+asyncpg://x@localhost/test", DEBUG=False)
         assert "asyncpg" in s.DATABASE_URL
         assert s.DEBUG is False
-        assert s.CORS_ORIGINS == ["http://localhost:3000", "http://localhost:5173"]
+        assert s.CORS_ORIGINS == ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
         assert s.APP_ENV == "development"
         assert s.SECRET_KEY == ""
 
