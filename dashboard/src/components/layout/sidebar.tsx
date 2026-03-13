@@ -17,14 +17,18 @@ export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navContent = (
-    <>
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="px-6 py-8">
-        <span className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+        <Link
+          href="/"
+          onClick={() => setMobileOpen(false)}
+          className="text-lg font-semibold tracking-tight text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors"
+        >
           AgentRelay
-        </span>
+        </Link>
       </div>
 
-      <nav className="flex-1 px-3">
+      <nav className="flex-1 overflow-y-auto px-3">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
@@ -47,7 +51,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-[var(--border)] px-4 py-4">
+      <div className="shrink-0 border-t border-[var(--border)] px-4 py-4">
         <label className="block text-xs font-medium text-[var(--text-tertiary)] mb-2">
           API Key
         </label>
@@ -59,16 +63,19 @@ export function Sidebar() {
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
         />
       </div>
-    </>
+    </div>
   );
 
   return (
     <>
       {/* Mobile top bar */}
       <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-card)] px-4 py-3 md:hidden">
-        <span className="text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+        <Link
+          href="/"
+          className="text-lg font-semibold tracking-tight text-[var(--text-primary)] hover:text-[var(--accent)] transition-colors"
+        >
           AgentRelay
-        </span>
+        </Link>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="rounded-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--bg)] hover:text-[var(--text-primary)]"
