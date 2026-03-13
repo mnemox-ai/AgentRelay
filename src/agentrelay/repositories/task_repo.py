@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agentrelay.domain.task_lifecycle import TaskStateMachine
@@ -34,6 +35,20 @@ class TaskRepository:
         stmt = select(Task).where(Task.status == "open").order_by(Task.created_at.desc()).limit(limit)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def count_claimed_today(self, agent_id: uuid.UUID) -> int:
+        """Count tasks claimed by an agent today (UTC)."""
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        stmt = (
+            select(func.count())
+            .select_from(Task)
+            .where(
+                Task.claimed_by == agent_id,
+                Task.claimed_at >= today_start,
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def update_status(self, task_id: uuid.UUID, status: str, **kwargs) -> Task | None:
         task = await self.get(task_id)

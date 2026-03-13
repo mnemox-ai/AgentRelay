@@ -17,12 +17,12 @@ from agentrelay.schemas.submission import SubmissionCreate, SubmissionResponse
 from agentrelay.schemas.task import TaskClaimRequest, TaskCreate, TaskResponse
 from agentrelay.security.task_sanitizer import scan_input
 from agentrelay.security.output_sanitizer import scan_output
-from agentrelay.security.token_limiter import check_token_budget
 from agentrelay.repositories.ledger_repo import LedgerRepository
 from agentrelay.repositories.reputation_repo import ReputationRepository
 from agentrelay.services.ledger_service import LedgerService
 from agentrelay.services.reputation_service import ReputationService
 from agentrelay.services.task_service import TaskService
+from agentrelay.services.quota_service import QuotaExceededError, QuotaService
 from agentrelay.services.expiration_service import expire_overdue_tasks
 from agentrelay.services.validation_service import ValidationService
 
@@ -104,20 +104,16 @@ async def claim_task(
     _agent: Agent = Depends(rate_limit_by_agent),
     db: AsyncSession = Depends(get_db),
 ):
-    # Check token budget before allowing claim
+    # Check quota (token cap + daily budget) before allowing claim
     task_repo = TaskRepository(db)
     task = await task_repo.get(task_id)
     if task is not None:
-        token_estimate = (task.task_spec or {}).get("token_estimate", 0)
-        if token_estimate > 0:
-            agent_repo = AgentRepository(db)
-            quota = await agent_repo.get_quota_profile(body.agent_id)
-            if quota is not None:
-                if not check_token_budget(token_estimate, quota.safe_token_cap):
-                    raise HTTPException(
-                        status_code=403,
-                        detail=f"Token budget exceeded: task requires {token_estimate} tokens but agent cap is {quota.safe_token_cap}",
-                    )
+        agent_repo = AgentRepository(db)
+        quota_svc = QuotaService(task_repo=task_repo, agent_repo=agent_repo)
+        try:
+            await quota_svc.check_and_deduct_quota(body.agent_id, task)
+        except QuotaExceededError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
 
     svc = _task_service(db)
     try:
