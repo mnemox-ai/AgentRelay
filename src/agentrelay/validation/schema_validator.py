@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import jsonschema
 
-from .base import BaseValidator, ValidationResult
+from agentrelay.domain.validation_result import ValidationResult, ValidatorType
+
+from .base import BaseValidator
 
 
 class SchemaValidator(BaseValidator):
@@ -19,4 +21,11 @@ class SchemaValidator(BaseValidator):
         for error in sorted(validator.iter_errors(output_data), key=lambda e: list(e.path)):
             path = ".".join(str(p) for p in error.absolute_path) or "(root)"
             errors.append(f"{path}: {error.message}")
-        return ValidationResult(valid=len(errors) == 0, errors=errors)
+        passed = len(errors) == 0
+        return ValidationResult(
+            passed=passed,
+            score=1.0 if passed else 0.0,
+            validator_type=ValidatorType.SCHEMA,
+            details="" if passed else f"{len(errors)} schema error(s)",
+            errors=errors,
+        )

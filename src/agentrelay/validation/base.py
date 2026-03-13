@@ -1,19 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 
-
-@dataclass
-class ValidationResult:
-    valid: bool
-    errors: list[str] = field(default_factory=list)
-
-    def merge(self, other: ValidationResult) -> ValidationResult:
-        return ValidationResult(
-            valid=self.valid and other.valid,
-            errors=self.errors + other.errors,
-        )
+from agentrelay.domain.validation_result import ValidationResult, ValidatorType  # noqa: F401
 
 
 class BaseValidator(ABC):

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 
 from agentrelay.repositories.reputation_repo import ReputationRepository
-from agentrelay.validation.base import ValidationResult
+from agentrelay.domain.validation_result import ValidationResult
 
 
 class ReputationService:
@@ -31,8 +31,8 @@ class ReputationService:
             }
 
         total = prev["total_submissions"] + 1
-        passed = prev["passed"] + (1 if validation_result.valid else 0)
-        failed = prev["failed"] + (0 if validation_result.valid else 1)
+        passed = prev["passed"] + (1 if validation_result.passed else 0)
+        failed = prev["failed"] + (0 if validation_result.passed else 1)
         pass_rate = passed / total if total > 0 else 0.0
         quality_score = pass_rate * 100.0
 

@@ -15,7 +15,7 @@ from agentrelay.services.quota_service import QuotaService
 from agentrelay.services.reputation_service import ReputationService
 from agentrelay.services.task_service import TaskService
 from agentrelay.services.validation_service import ValidationService
-from agentrelay.validation.base import ValidationResult
+from agentrelay.domain.validation_result import ValidationResult, ValidatorType
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +110,7 @@ class TestTaskService:
             reward=1.0,
             deadline_seconds=3600,
         )
-        result = await svc.create_task(data)
+        await svc.create_task(data)
 
         call_kwargs = task_repo.create.call_args.kwargs
         assert call_kwargs["deadline_at"] is not None
@@ -236,7 +236,7 @@ class TestValidationService:
             output_data={"name": "Alice"},
             output_schema=schema,
         )
-        assert result.valid is True
+        assert result.passed is True
         assert result.errors == []
 
     def test_schema_validation_fails(self):
@@ -251,7 +251,7 @@ class TestValidationService:
             output_data={"name": 123},
             output_schema=schema,
         )
-        assert result.valid is False
+        assert result.passed is False
         assert len(result.errors) > 0
 
     def test_rule_validation_fails_empty_value(self):
@@ -266,7 +266,7 @@ class TestValidationService:
             output_data={"name": ""},
             output_schema=schema,
         )
-        assert result.valid is False
+        assert result.passed is False
 
     def test_missing_required_field(self):
         svc = ValidationService()
@@ -283,7 +283,7 @@ class TestValidationService:
             output_data={"name": "Alice"},
             output_schema=schema,
         )
-        assert result.valid is False
+        assert result.passed is False
 
     def test_schema_fails_short_circuits(self):
         """When schema validation fails, rule validation is skipped."""
@@ -298,7 +298,7 @@ class TestValidationService:
             output_data={"x": "not_int"},
             output_schema=schema,
         )
-        assert result.valid is False
+        assert result.passed is False
         # Errors should only be from schema validator
         assert any("integer" in e for e in result.errors)
 
@@ -319,8 +319,8 @@ class TestReputationService:
         repo.get_latest.return_value = None
         repo.create_snapshot.return_value = _make_reputation_snapshot()
 
-        vr = ValidationResult(valid=True, errors=[])
-        result = await svc.update_reputation(uuid.uuid4(), vr)
+        vr = ValidationResult(passed=True, score=1.0, validator_type=ValidatorType.SCHEMA, details="ok")
+        await svc.update_reputation(uuid.uuid4(), vr)
 
         call_kwargs = repo.create_snapshot.call_args.kwargs
         assert call_kwargs["metrics"]["total_submissions"] == 1
@@ -334,7 +334,7 @@ class TestReputationService:
         repo.get_latest.return_value = None
         repo.create_snapshot.return_value = _make_reputation_snapshot()
 
-        vr = ValidationResult(valid=False, errors=["bad"])
+        vr = ValidationResult(passed=False, score=0.0, validator_type=ValidatorType.SCHEMA, details="bad")
         await svc.update_reputation(uuid.uuid4(), vr)
 
         call_kwargs = repo.create_snapshot.call_args.kwargs
@@ -358,7 +358,7 @@ class TestReputationService:
         repo.get_latest.return_value = existing
         repo.create_snapshot.return_value = _make_reputation_snapshot()
 
-        vr = ValidationResult(valid=True, errors=[])
+        vr = ValidationResult(passed=True, score=1.0, validator_type=ValidatorType.SCHEMA, details="ok")
         await svc.update_reputation(uuid.uuid4(), vr)
 
         call_kwargs = repo.create_snapshot.call_args.kwargs

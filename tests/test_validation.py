@@ -1,4 +1,4 @@
-from agentrelay.validation import SchemaValidator, RuleValidator, ValidationResult
+from agentrelay.validation import SchemaValidator, RuleValidator, ValidationResult, ValidatorType
 from agentrelay.validation.rule_validator import (
     required_fields_present,
     no_empty_values,
@@ -27,25 +27,25 @@ VALID_OUTPUT = {"name": "test", "score": 42, "tags": ["a"]}
 class TestSchemaValidatorHappyPath:
     def test_valid_output(self):
         result = SchemaValidator().validate({}, VALID_OUTPUT, SCHEMA)
-        assert result.valid is True
+        assert result.passed is True
         assert result.errors == []
 
     def test_extra_fields_allowed(self):
         output = {**VALID_OUTPUT, "extra": True}
         result = SchemaValidator().validate({}, output, SCHEMA)
-        assert result.valid is True
+        assert result.passed is True
 
 
 class TestSchemaValidatorMissingFields:
     def test_missing_required_field(self):
         output = {"name": "test"}  # missing score
         result = SchemaValidator().validate({}, output, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert any("score" in e for e in result.errors)
 
     def test_missing_all_required(self):
         result = SchemaValidator().validate({}, {}, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert len(result.errors) >= 2
 
 
@@ -53,19 +53,19 @@ class TestSchemaValidatorWrongTypes:
     def test_wrong_type_string(self):
         output = {"name": 123, "score": 42}
         result = SchemaValidator().validate({}, output, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert any("name" in e for e in result.errors)
 
     def test_wrong_type_integer(self):
         output = {"name": "test", "score": "not_a_number"}
         result = SchemaValidator().validate({}, output, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert any("score" in e for e in result.errors)
 
     def test_wrong_type_array(self):
         output = {"name": "test", "score": 42, "tags": "not_an_array"}
         result = SchemaValidator().validate({}, output, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert any("tags" in e for e in result.errors)
 
 
@@ -75,7 +75,7 @@ class TestSchemaValidatorWrongTypes:
 class TestRuleValidatorHappyPath:
     def test_valid_output(self):
         result = RuleValidator().validate({}, VALID_OUTPUT, SCHEMA)
-        assert result.valid is True
+        assert result.passed is True
         assert result.errors == []
 
 
@@ -141,7 +141,7 @@ class TestRuleValidatorCustomRule:
         validator = RuleValidator()
         validator.add_rule(no_negative_score)
         result = validator.validate({}, {"name": "x", "score": -1}, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert any("negative" in e for e in result.errors)
 
 
@@ -150,7 +150,7 @@ class TestRuleValidatorCombined:
         """Missing field + empty value + wrong type all at once."""
         output = {"name": "", "tags": "bad"}  # missing score, empty name, wrong type tags
         result = RuleValidator().validate({}, output, SCHEMA)
-        assert result.valid is False
+        assert result.passed is False
         assert len(result.errors) >= 3
 
 
@@ -159,22 +159,22 @@ class TestRuleValidatorCombined:
 
 class TestValidationResult:
     def test_merge_both_valid(self):
-        a = ValidationResult(valid=True, errors=[])
-        b = ValidationResult(valid=True, errors=[])
-        merged = a.merge(b)
-        assert merged.valid is True
+        a = ValidationResult(passed=True, score=1.0, validator_type=ValidatorType.SCHEMA, details="")
+        b = ValidationResult(passed=True, score=1.0, validator_type=ValidatorType.RULE, details="")
+        merged = ValidationResult.merge(a, b)
+        assert merged.passed is True
         assert merged.errors == []
 
     def test_merge_one_invalid(self):
-        a = ValidationResult(valid=True, errors=[])
-        b = ValidationResult(valid=False, errors=["fail"])
-        merged = a.merge(b)
-        assert merged.valid is False
+        a = ValidationResult(passed=True, score=1.0, validator_type=ValidatorType.SCHEMA, details="")
+        b = ValidationResult(passed=False, score=0.0, validator_type=ValidatorType.RULE, details="fail", errors=["fail"])
+        merged = ValidationResult.merge(a, b)
+        assert merged.passed is False
         assert merged.errors == ["fail"]
 
     def test_merge_combines_errors(self):
-        a = ValidationResult(valid=False, errors=["a"])
-        b = ValidationResult(valid=False, errors=["b"])
-        merged = a.merge(b)
-        assert merged.valid is False
+        a = ValidationResult(passed=False, score=0.0, validator_type=ValidatorType.SCHEMA, details="a", errors=["a"])
+        b = ValidationResult(passed=False, score=0.0, validator_type=ValidatorType.RULE, details="b", errors=["b"])
+        merged = ValidationResult.merge(a, b)
+        assert merged.passed is False
         assert merged.errors == ["a", "b"]

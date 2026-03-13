@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Callable
 
-from .base import BaseValidator, ValidationResult
+from agentrelay.domain.validation_result import ValidationResult, ValidatorType
+
+from .base import BaseValidator
 
 # Type alias for a rule function
 Rule = Callable[[dict, dict, dict], list[str]]
@@ -90,4 +92,11 @@ class RuleValidator(BaseValidator):
         errors: list[str] = []
         for rule in self.rules:
             errors.extend(rule(input_data, output_data, schema))
-        return ValidationResult(valid=len(errors) == 0, errors=errors)
+        passed = len(errors) == 0
+        return ValidationResult(
+            passed=passed,
+            score=1.0 if passed else 0.0,
+            validator_type=ValidatorType.RULE,
+            details="" if passed else f"{len(errors)} rule error(s)",
+            errors=errors,
+        )
