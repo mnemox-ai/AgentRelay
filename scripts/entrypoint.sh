@@ -3,14 +3,17 @@ set -e
 
 echo "Waiting for PostgreSQL..."
 until python -c "
-import socket, sys, os
+import socket, os, re
 url = os.environ.get('DATABASE_URL', '')
-# Extract host:port from postgresql+asyncpg://user:pass@host:port/db
-parts = url.split('@')[-1].split('/')[0]
-host, port = parts.split(':')
+# Extract host:port from any postgres URL format
+m = re.search(r'@([^/:]+)(?::(\d+))?/', url)
+if not m:
+    raise SystemExit('Cannot parse DATABASE_URL')
+host = m.group(1)
+port = int(m.group(2) or 5432)
 s = socket.socket()
 s.settimeout(2)
-s.connect((host, int(port)))
+s.connect((host, port))
 s.close()
 " 2>/dev/null; do
   echo "  PostgreSQL not ready, retrying in 2s..."

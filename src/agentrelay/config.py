@@ -1,5 +1,6 @@
 """Application settings via pydantic-settings."""
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -15,6 +16,16 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
     REDIS_URL: str = "redis://localhost:6379/0"
     BATCH_MAX_SIZE: int = 100
+
+    @model_validator(mode="after")
+    def _normalize_database_url(self) -> "Settings":
+        """Render provides postgres:// but asyncpg needs postgresql+asyncpg://."""
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            self.DATABASE_URL = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://"):
+            self.DATABASE_URL = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return self
 
 
 settings = Settings()
