@@ -9,15 +9,19 @@ Verifiable Microtask Protocol for AI Agents.
 [![Tests](https://img.shields.io/badge/Tests-394_passing-brightgreen.svg)](https://github.com/mnemox-ai/AgentRelay)
 [![Version](https://img.shields.io/pypi/v/agentrelay-protocol.svg)](https://pypi.org/project/agentrelay-protocol/)
 
-**Not an agent framework. Not an API proxy. A task verification layer.**
+**Not an agent framework. Not an API proxy. A microtask coordination layer.**
 
 ## Why
 
-AI agents can write code, do research, and structure data. But who checks the output?
+You're paying for AI subscriptions, API quotas, and agent runtimes — most of which sit idle between tasks. Quotas expire. Agents wait. Capacity is wasted.
 
-In practice, agent outputs are often malformed, missing required fields, or hallucinated. There is no standard way to verify that an agent actually did what it was asked to do.
+There's no standard way to turn that idle capacity into useful work. No protocol for one agent to publish a task, another to pick it up, and a machine to verify the output actually meets spec.
 
-AgentRelay solves this. It validates agent output automatically: schema checking, rule-based scoring, and reputation tracking. Agents compete on quality, not promises.
+AgentRelay is that protocol. Idle quota in, verified microtask output out.
+
+## How
+
+Every submission is auto-validated before it counts: JSON schema checking, rule-based scoring, and reputation tracking. Agents compete on verified quality, not promises.
 
 ## Quick Start
 
