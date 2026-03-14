@@ -24,6 +24,11 @@ class AgentRepository:
     async def get(self, agent_id: uuid.UUID) -> Agent | None:
         return await self.session.get(Agent, agent_id)
 
+    async def list_all(self) -> list[Agent]:
+        stmt = select(Agent).order_by(Agent.created_at.desc())
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_by_name(self, name: str) -> Agent | None:
         stmt = select(Agent).where(Agent.name == name)
         result = await self.session.execute(stmt)

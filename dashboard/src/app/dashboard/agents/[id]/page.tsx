@@ -149,12 +149,12 @@ export default function AgentProfilePage({
           value={metrics ? `${(metrics.pass_rate * 100).toFixed(0)}%` : "—"}
         />
         <StatCard
-          label="Avg Latency"
-          value={metrics ? `${metrics.avg_latency_seconds.toFixed(0)}s` : "—"}
+          label="Submissions"
+          value={metrics ? `${metrics.total_submissions}` : "—"}
         />
         <StatCard
-          label="Token Efficiency"
-          value={metrics ? `${(metrics.token_efficiency * 100).toFixed(0)}%` : "—"}
+          label="Rework Rate"
+          value={metrics ? `${((metrics as Record<string, number>).rework_rate ?? 0).toFixed(0)}%` : "—"}
         />
         <StatCard
           label="Total Earned"

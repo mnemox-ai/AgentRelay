@@ -157,7 +157,7 @@ export default function TasksPage() {
                 className="border-b border-[var(--border)] last:border-0 cursor-pointer hover:bg-neutral-50 transition-colors"
               >
                 <td className="py-3">
-                  <TypeBadge type={task.task_spec.type} />
+                  <TypeBadge type={task.task_spec.task_type ?? task.task_spec.type ?? "unknown"} />
                 </td>
                 <td className="py-3">
                   <Badge status={task.status} />

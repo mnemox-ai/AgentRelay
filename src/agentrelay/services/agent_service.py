@@ -14,6 +14,10 @@ class AgentService:
     def __init__(self, agent_repo: AgentRepository) -> None:
         self.agent_repo = agent_repo
 
+    async def list_agents(self) -> list[Agent]:
+        """List all registered agents."""
+        return await self.agent_repo.list_all()
+
     async def register_agent(self, data: AgentRegister) -> Agent:
         """Register a new agent. Raises ValueError if name already taken."""
         existing = await self.agent_repo.get_by_name(data.name)

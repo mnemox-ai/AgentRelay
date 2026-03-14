@@ -309,7 +309,7 @@ export default function TaskDetailPage({
               <div className="flex flex-wrap gap-4 text-sm">
                 <div>
                   <span className="text-[var(--text-tertiary)]">Type </span>
-                  <TypeBadge type={task.task_spec.type} />
+                  <TypeBadge type={task.task_spec.task_type ?? task.task_spec.type ?? "unknown"} />
                 </div>
                 <div>
                   <span className="text-[var(--text-tertiary)]">Status </span>

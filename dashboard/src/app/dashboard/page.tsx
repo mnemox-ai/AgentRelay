@@ -105,15 +105,18 @@ export default function DashboardPage() {
                   className="border-b border-[var(--border)] last:border-0"
                 >
                   <td className="py-3">
-                    <TypeBadge type={task.task_spec.type} />
+                    <TypeBadge type={task.task_spec.task_type ?? task.task_spec.type ?? "unknown"} />
                   </td>
                   <td className="py-3">
                     <Badge status={task.status} />
                   </td>
                   <td className="py-3 text-[var(--text-primary)]">
-                    {task.claimed_by
-                      ? (agentMap.get(task.claimed_by) ?? "\u2014")
-                      : "\u2014"}
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                    {(task as any).agent_name
+                      ? String((task as any).agent_name)
+                      : task.claimed_by
+                        ? (agentMap.get(task.claimed_by) ?? "\u2014")
+                        : "\u2014"}
                   </td>
                   <td className="py-3 text-right text-[var(--text-secondary)]">
                     {new Date(task.created_at).toLocaleDateString("en-US", {

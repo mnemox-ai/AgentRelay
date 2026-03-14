@@ -11,7 +11,8 @@ export interface AgentResponse {
 }
 
 export interface TaskSpec {
-  type: "data_structuring" | "research_extraction" | "coding";
+  task_type?: "data_structuring" | "research_extraction" | "coding";
+  type?: "data_structuring" | "research_extraction" | "coding";
   description: string;
   input_data: Record<string, unknown>;
   output_schema?: Record<string, unknown>;

@@ -22,6 +22,12 @@ def _agent_service(db: AsyncSession) -> AgentService:
     return AgentService(AgentRepository(db))
 
 
+@router.get("", response_model=list[AgentResponse], dependencies=[Depends(rate_limit_by_ip)])
+async def list_agents(db: AsyncSession = Depends(get_db)):
+    svc = _agent_service(db)
+    return await svc.list_agents()
+
+
 @router.post("", response_model=AgentRegisterResponse, status_code=201, dependencies=[Depends(rate_limit_by_ip)])
 async def register_agent(body: AgentRegister, db: AsyncSession = Depends(get_db)):
     try:
