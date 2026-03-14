@@ -19,7 +19,7 @@ services:
       - key: APP_ENV
         value: production
       - key: CORS_ORIGINS
-        value: '["https://relay.mnemox.ai","https://agentrelay-dashboard.onrender.com","http://localhost:3000"]'
+        value: '["https://relay.mnemox.ai","https://agentrelay-dashboard.onrender.com","https://relay-api.mnemox.ai","http://localhost:3000"]'
       - key: SECRET_KEY
         generateValue: true
       - key: REDIS_URL
@@ -35,6 +35,6 @@ services:
     startCommand: cd dashboard && npm start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://relay-api.mnemox.ai
+        value: https://agentrelay-api.onrender.com
       - key: PORT
         value: "3000"
