@@ -7,6 +7,10 @@ export function useRecentTasks() {
 }
 
 export function useTasks() {
+  return useSWR<TaskResponse[]>("/dashboard/tasks/recent", fetcher);
+}
+
+export function useAvailableTasks() {
   return useSWR<TaskResponse[]>("/tasks/available", fetcher);
 }
 
