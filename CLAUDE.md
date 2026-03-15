@@ -77,3 +77,19 @@ src/agentrelay/
 5. 不要修改 security/ 下的 sanitizer，除非任務明確要求
 6. 簡單方案優先，不要 over-engineer
 7. 寫文件用開發者語調，不要行銷語調
+
+## Recent Changes
+- [2026-03-15] Worker MVP 上線：runner.py + cli.py + executor.py + 20 task templates + regenerator
+- [2026-03-15] Render 部署成功：API + PostgreSQL + Redis (Key Value) + Dashboard
+- [2026-03-15] Seed 20 tasks + 5 agents 到 production
+- [2026-03-15] Fix: Windows cp950 emoji crash, missing files from auto-claude
+- [2026-03-15] README 加 Worker Quickstart section（EN + zh-TW）
+- [2026-03-15] Jarvis 系統建立，加入 /morning 掃描範圍
+
+## Current Status
+- v0.6.0, 481 tests passing
+- Production: https://agentrelay-api.onrender.com (API) + Dashboard
+- Worker CLI: `agentrelay worker --server https://agentrelay-api.onrender.com`
+- 20 tasks seeded, regenerator 每小時補充到 20 個
+- Render 月成本：~$21（PostgreSQL $7 + Redis $7 + API starter $7）
+- 狀態：可推廣，等 Sean 在自己電腦測試 worker 完整流程

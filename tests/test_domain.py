@@ -21,9 +21,11 @@ class TestTaskType:
         assert TaskType.DATA_STRUCTURING.value == "data_structuring"
         assert TaskType.RESEARCH_EXTRACTION.value == "research_extraction"
         assert TaskType.CODING.value == "coding"
+        assert TaskType.CONTENT_GENERATION.value == "content_generation"
+        assert TaskType.CLASSIFICATION.value == "classification"
 
     def test_member_count(self):
-        assert len(TaskType) == 3
+        assert len(TaskType) == 5
 
 
 # --- TaskStatus ---

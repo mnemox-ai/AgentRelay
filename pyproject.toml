@@ -44,7 +44,7 @@ lint = [
     "ruff>=0.3",
 ]
 dev = [
-    "agent-relay[test,lint]",
+    "agentrelay-protocol[test,lint]",
 ]
 
 [project.scripts]
