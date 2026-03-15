@@ -14,10 +14,12 @@ from agentrelay.api.routes import agents, dashboard, health, tasks, validation, 
 from agentrelay.config import settings
 from agentrelay.db import async_session_factory
 from agentrelay.services.expiration_service import expire_overdue_tasks
+from agentrelay.services.regenerator_service import TaskRegenerator
 
 logger = logging.getLogger(__name__)
 
 EXPIRATION_INTERVAL_SECONDS = 60
+REGENERATION_INTERVAL_SECONDS = 3600
 
 
 async def _expiration_loop() -> None:
@@ -34,15 +36,37 @@ async def _expiration_loop() -> None:
         await asyncio.sleep(EXPIRATION_INTERVAL_SECONDS)
 
 
+async def _regeneration_loop() -> None:
+    """Background loop that replenishes open tasks to the target pool size."""
+    regenerator = TaskRegenerator(
+        async_session_factory,
+        check_interval=REGENERATION_INTERVAL_SECONDS,
+    )
+    # Run immediately on startup, then every interval
+    while True:
+        try:
+            created = await regenerator.check_and_replenish()
+            if created:
+                logger.info("Background regeneration: created %d tasks", created)
+        except Exception:
+            logger.exception("Error in regeneration background loop")
+        await asyncio.sleep(REGENERATION_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(_expiration_loop())
+    bg_tasks: list[asyncio.Task] = []
+    bg_tasks.append(asyncio.create_task(_expiration_loop()))
+    if settings.ENABLE_REGENERATOR:
+        bg_tasks.append(asyncio.create_task(_regeneration_loop()))
+        logger.info("Task regenerator enabled")
     yield
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for t in bg_tasks:
+        t.cancel()
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app() -> FastAPI:

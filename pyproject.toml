@@ -47,6 +47,9 @@ dev = [
     "agent-relay[test,lint]",
 ]
 
+[project.scripts]
+agentrelay = "agentrelay.worker.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/mnemox-ai/AgentRelay"
 Repository = "https://github.com/mnemox-ai/AgentRelay"

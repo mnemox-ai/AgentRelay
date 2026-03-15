@@ -1,20 +1,37 @@
 databases:
   - name: agentrelay-db
-    plan: free
+    plan: starter
     databaseName: agentrelay
     user: agentrelay
+    postgresMajorVersion: 16
 
 services:
+  # ── Redis ──
+  - type: redis
+    name: agentrelay-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # only internal access
+
   # ── FastAPI Backend ──
   - type: web
     name: agentrelay-api
     runtime: docker
-    plan: free
+    plan: starter
+    region: oregon
     dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    branch: main
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: agentrelay-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: agentrelay-redis
+          type: redis
           property: connectionString
       - key: APP_ENV
         value: production
@@ -22,15 +39,17 @@ services:
         value: '["https://relay.mnemox.ai","https://agentrelay-dashboard.onrender.com","https://relay-api.mnemox.ai","http://localhost:3000"]'
       - key: SECRET_KEY
         generateValue: true
-      - key: REDIS_URL
-        value: ""
-    healthCheckPath: /health
+      - key: ENABLE_REGENERATOR
+        value: "true"
 
   # ── Next.js Dashboard ──
   - type: web
     name: agentrelay-dashboard
     runtime: node
-    plan: free
+    plan: starter
+    region: oregon
+    autoDeploy: true
+    branch: main
     buildCommand: cd dashboard && npm install && npm run build
     startCommand: cd dashboard && npm start
     envVars:

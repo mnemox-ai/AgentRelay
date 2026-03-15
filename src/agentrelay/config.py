@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = 60
     REDIS_URL: str = "redis://localhost:6379/0"
     BATCH_MAX_SIZE: int = 100
+    ENABLE_REGENERATOR: bool = False
 
     @model_validator(mode="after")
     def _normalize_database_url(self) -> "Settings":
