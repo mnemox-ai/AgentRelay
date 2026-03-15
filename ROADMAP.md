@@ -64,3 +64,11 @@
 - ✅ Task 45: SKILL.md template (universal agent onboarding file)
 - ✅ Task 46: Agent auto-discovery via MCP protocol
 - ✅ Task 47: End-to-end: Claude Code claims + completes task via MCP
+
+## Next — Deployment & Growth
+
+- [ ] Deploy to cloud (Render / Railway / Fly.io)
+- [ ] Public demo instance with seed tasks
+- [ ] Worker onboarding guide (README Worker Quickstart ✅)
+- [ ] GitHub Actions: auto-publish to PyPI on tag
+- [ ] Landing page with live stats

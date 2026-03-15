@@ -1,27 +1,30 @@
-"""Seed script: register agents and create tasks via the AgentRelay API.
+"""Seed AgentRelay on Render: register agents + create tasks via REST API.
 
-Uses the template system to generate 20 tasks (5 types × 4 templates).
+Targets the production Render URL by default.
 
 Usage:
-    docker compose up -d
-    python scripts/seed_tasks.py            # 20 tasks (one per template)
-    python scripts/seed_tasks.py 50         # 50 random tasks
-    python scripts/seed_tasks.py 10 coding  # 10 coding tasks only
+    python scripts/render_seed.py                              # 20 tasks
+    python scripts/render_seed.py 50                           # 50 random tasks
+    python scripts/render_seed.py 10 coding                    # 10 coding tasks
+    python scripts/render_seed.py https://custom-url.com 30    # custom URL + 30 tasks
+
+Environment:
+    AGENTRELAY_URL  — override the base URL (default: https://agentrelay-api.onrender.com)
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 
 import httpx
 
-# Allow running as `python scripts/seed_tasks.py` from project root
 sys.path.insert(0, "src")
 
 from agentrelay.tasks.generator import generate_tasks  # noqa: E402
 
-BASE_URL = "http://localhost:8000"
+RENDER_URL = "https://agentrelay-api.onrender.com"
 
 AGENTS = [
     {
@@ -96,13 +99,13 @@ AGENTS = [
 ]
 
 
-async def register_agents(
-    client: httpx.AsyncClient,
-) -> dict[str, dict]:
-    """Register all agents via POST /agents. Returns {name: response_dict}."""
+async def register_agents(client: httpx.AsyncClient) -> dict[str, dict]:
     agents: dict[str, dict] = {}
     for agent_data in AGENTS:
         resp = await client.post("/agents", json=agent_data)
+        if resp.status_code == 409:
+            print(f"  Skipped (already exists): {agent_data['name']}")
+            continue
         resp.raise_for_status()
         result = resp.json()
         agents[result["name"]] = result
@@ -117,7 +120,6 @@ async def create_tasks(
     count: int | None = None,
     task_type: str | None = None,
 ) -> list[dict]:
-    """Create tasks via POST /tasks using the template generator."""
     tasks_data = generate_tasks(
         publisher_id=publisher["id"],
         count=count,
@@ -138,13 +140,11 @@ async def create_tasks(
 
 
 async def main() -> None:
-    # Parse CLI args
-    base_url = BASE_URL
+    base_url = os.environ.get("AGENTRELAY_URL", RENDER_URL)
     count: int | None = None
     task_type: str | None = None
 
-    args = sys.argv[1:]
-    for arg in args:
+    for arg in sys.argv[1:]:
         if arg.startswith("http"):
             base_url = arg
         elif arg.isdigit():
@@ -152,18 +152,26 @@ async def main() -> None:
         else:
             task_type = arg
 
-    async with httpx.AsyncClient(base_url=base_url, timeout=30) as client:
-        # Health check
+    print(f"Target: {base_url}")
+
+    async with httpx.AsyncClient(base_url=base_url, timeout=60) as client:
+        # Health check (Render cold start can be slow)
+        print("Checking health...")
         try:
             resp = await client.get("/health")
             resp.raise_for_status()
-        except httpx.ConnectError:
-            print(f"ERROR: Cannot connect to {base_url}. Is the server running?")
-            print("  Run: docker compose up -d")
+            print(f"  OK: {resp.json()}")
+        except (httpx.ConnectError, httpx.ReadTimeout) as e:
+            print(f"ERROR: Cannot reach {base_url} — {e}")
             sys.exit(1)
 
-        print(f"=== Registering {len(AGENTS)} agents ===")
+        print(f"\n=== Registering {len(AGENTS)} agents ===")
         agents = await register_agents(client)
+
+        if "alpha-publisher" not in agents:
+            print("ERROR: alpha-publisher not registered (maybe already exists).")
+            print("  If re-seeding, delete existing agents first or use seed_tasks.py locally.")
+            sys.exit(1)
 
         desc = f"{count or 20} tasks"
         if task_type:
@@ -172,8 +180,7 @@ async def main() -> None:
         publisher = agents["alpha-publisher"]
         tasks = await create_tasks(client, publisher, count=count, task_type=task_type)
 
-        # Summary
-        print(f"\nDone: {len(agents)} agents, {len(tasks)} tasks created.")
+        print(f"\nDone: {len(agents)} agents, {len(tasks)} tasks created on {base_url}")
         print("\nAgent API keys (save these — shown once):")
         for name, agent in agents.items():
             print(f"  {name}: {agent['api_key']}")

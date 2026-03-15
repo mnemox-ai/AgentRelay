@@ -11,6 +11,8 @@ class TaskType(Enum):
     DATA_STRUCTURING = "data_structuring"
     RESEARCH_EXTRACTION = "research_extraction"
     CODING = "coding"
+    CONTENT_GENERATION = "content_generation"
+    CLASSIFICATION = "classification"
 
 
 class TaskStatus(Enum):
