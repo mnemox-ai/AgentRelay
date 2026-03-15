@@ -40,7 +40,10 @@ class WorkerRunner:
         self.stats = {"completed": 0, "failed": 0, "reputation": 1000}
 
     def _log(self, msg: str) -> None:
-        print(f"{PREFIX} {msg}", flush=True)
+        try:
+            print(f"{PREFIX} {msg}", flush=True)
+        except UnicodeEncodeError:
+            print(f"{PREFIX} {msg.encode('ascii', 'replace').decode()}", flush=True)
 
     def _headers(self) -> dict[str, str]:
         if self.api_key:
@@ -152,7 +155,7 @@ class WorkerRunner:
         self._log(f"Claiming task #{short_id}...")
 
         if not await self._claim_task(task_id):
-            self._log(f"⚠️  Could not claim task #{short_id} (already taken?)")
+            self._log(f"[WARN] Could not claim task #{short_id} (already taken?)")
             return
 
         self._log("Running with Claude...")
@@ -161,10 +164,10 @@ class WorkerRunner:
         if result.status == ExecutionStatus.SUCCESS:
             output_data = result.output_data or {"raw_output": result.output}
         elif result.status == ExecutionStatus.TIMEOUT:
-            self._log(f"⏱️  Task #{short_id} timed out after {result.duration_seconds:.0f}s")
+            self._log(f"[TIMEOUT] Task #{short_id} timed out after {result.duration_seconds:.0f}s")
             output_data = {"error": "timeout", "raw_output": result.output}
         else:
-            self._log(f"⚠️  Claude execution failed: {result.error}")
+            self._log(f"[ERROR] Claude execution failed: {result.error}")
             output_data = {"error": result.error, "raw_output": result.output}
 
         self._log("Submitting result...")
@@ -188,21 +191,21 @@ class WorkerRunner:
                 self.stats["completed"] += 1
                 self.stats["reputation"] += 50
                 self._log(
-                    f"✅ Task #{short_id} completed! "
+                    f"[OK] Task #{short_id} completed! "
                     f"Reputation: {self.stats['reputation']} (+50)"
                 )
             elif final_status == "failed":
                 self.stats["failed"] += 1
                 self.stats["reputation"] = max(0, self.stats["reputation"] - 20)
                 self._log(
-                    f"❌ Task #{short_id} failed validation. "
+                    f"[FAIL] Task #{short_id} failed validation. "
                     f"Reputation: {self.stats['reputation']} (-20)"
                 )
             else:
                 self.stats["completed"] += 1
-                self._log(f"📤 Task #{short_id} submitted (status: {final_status})")
+                self._log(f"[SENT] Task #{short_id} submitted (status: {final_status})")
         else:
-            self._log(f"⚠️  Failed to submit task #{short_id}")
+            self._log(f"[ERROR] Failed to submit task #{short_id}")
 
     async def run(self) -> None:
         """Main worker loop."""
