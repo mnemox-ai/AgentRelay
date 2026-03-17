@@ -15,7 +15,6 @@ Each template is a dict with:
 from __future__ import annotations
 
 import random
-import string
 
 # ---------------------------------------------------------------------------
 # Helpers

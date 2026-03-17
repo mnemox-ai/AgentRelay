@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from agentrelay.worker.executor import (
-    ExecutionResult,
     ExecutionStatus,
     ExecutorConfig,
     WorkerExecutor,

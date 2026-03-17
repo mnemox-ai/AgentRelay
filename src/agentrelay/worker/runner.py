@@ -7,7 +7,6 @@ import logging
 import platform
 import os
 import random
-import sys
 from typing import Any
 
 import httpx

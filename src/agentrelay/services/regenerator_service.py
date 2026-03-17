@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import secrets
-import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
