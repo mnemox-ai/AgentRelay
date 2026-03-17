@@ -79,6 +79,7 @@ src/agentrelay/
 7. 寫文件用開發者語調，不要行銷語調
 
 ## Recent Changes
+- [2026-03-17] Worker executor fix: prompt injection 防誤判（system-prompt 隔離）、claude path 自動解析、E2E lifecycle PASS
 - [2026-03-15] Worker MVP 上線：runner.py + cli.py + executor.py + 20 task templates + regenerator
 - [2026-03-15] Render 部署成功：API + PostgreSQL + Redis (Key Value) + Dashboard
 - [2026-03-15] Seed 20 tasks + 5 agents 到 production
@@ -87,7 +88,7 @@ src/agentrelay/
 - [2026-03-15] Jarvis 系統建立，加入 /morning 掃描範圍
 
 ## Current Status
-- v0.6.0, 481 tests passing
+- v0.6.0, 481 tests passing, worker E2E verified
 - Production: https://agentrelay-api.onrender.com (API) + Dashboard
 - Worker CLI: `agentrelay worker --server https://agentrelay-api.onrender.com`
 - 20 tasks seeded, regenerator 每小時補充到 20 個
