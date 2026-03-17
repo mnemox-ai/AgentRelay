@@ -19,17 +19,20 @@ def _run_worker(args: argparse.Namespace) -> None:
     from agentrelay.worker.executor import ExecutorConfig
     from agentrelay.worker.runner import WorkerRunner
 
-    if not _check_claude_cli():
+    claude_path = shutil.which("claude")
+    if not claude_path:
         print(
-            "[AgentRelay Worker] ERROR: 'claude' CLI not found.\n"
+            "[AgentRelay Worker] ERROR: 'claude' CLI not found on PATH.\n"
             "Install Claude Code: https://docs.anthropic.com/en/docs/claude-code\n"
-            "Then run: claude login",
+            "Then run: claude login\n"
+            "Or specify path: agentrelay worker --claude-path /path/to/claude",
             file=sys.stderr,
         )
         raise SystemExit(1)
 
     executor_config = ExecutorConfig(
         timeout_seconds=args.timeout,
+        claude_path=getattr(args, "claude_path", None) or claude_path,
     )
     runner = WorkerRunner(
         server_url=args.server,
@@ -78,6 +81,11 @@ def main(argv: list[str] | None = None) -> None:
         type=int,
         default=300,
         help="Max seconds per task execution (default: 300)",
+    )
+    wp.add_argument(
+        "--claude-path",
+        default=None,
+        help="Path to claude CLI binary (auto-detected if omitted)",
     )
 
     # ── mcp ──

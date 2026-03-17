@@ -54,11 +54,11 @@ def _mock_process(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0)
 # ---------------------------------------------------------------------------
 
 class TestBuildPrompt:
-    def test_includes_task_type(self):
+    def test_includes_instruction(self):
         executor = WorkerExecutor()
-        spec = _sample_task_spec(task_type="research_extraction")
+        spec = _sample_task_spec(input_data={"instruction": "Do something"})
         prompt = executor._build_prompt(spec)
-        assert "research_extraction" in prompt
+        assert "Do something" in prompt
 
     def test_includes_input_data(self):
         executor = WorkerExecutor()
@@ -95,7 +95,7 @@ class TestBuildCommand:
     def test_basic_command(self):
         executor = WorkerExecutor()
         cmd = executor._build_command("hello")
-        assert cmd[0] == "claude"
+        assert "claude" in cmd[0].lower()
         assert "-p" in cmd
         assert "hello" in cmd
         assert "--output-format" in cmd

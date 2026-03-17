@@ -217,7 +217,7 @@ class TestCLIEntryPoint:
         """worker subcommand fails if claude CLI not on PATH."""
         from agentrelay.worker.cli import main
 
-        with patch("agentrelay.worker.cli._check_claude_cli", return_value=False):
+        with patch("shutil.which", return_value=None):
             with pytest.raises(SystemExit) as exc_info:
                 main(["worker", "--server", "http://localhost:8000"])
             assert exc_info.value.code == 1
