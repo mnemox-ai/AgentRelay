@@ -79,6 +79,7 @@ src/agentrelay/
 7. 寫文件用開發者語調，不要行銷語調
 
 ## Recent Changes
+- [2026-03-23] fix: /tasks/expire auth, CORS hardening, asyncio deprecation
 - [2026-03-18] 策略決策：AgentRelay 暫停新開發，精力轉 TradeMemory。保持維護狀態。
 - [2026-03-18] Worker executor 修復：prompt injection fix + claude path auto-resolve + 三層隔離。E2E FULL LIFECYCLE PASS。CI green (481 tests)。
 - [2026-03-17] CI green: lint fix (5 unused imports) + all 3 CI jobs pass
