@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from agentrelay.api.deps import get_db, rate_limit_by_agent, rate_limit_by_ip
+from agentrelay.api.deps import get_current_agent, get_db, rate_limit_by_agent, rate_limit_by_ip
 from agentrelay.domain.task_lifecycle import InvalidTransitionError
 from agentrelay.models.agent import Agent
 from agentrelay.repositories.agent_repo import AgentRepository
@@ -238,7 +238,10 @@ async def submit_task(
 
 
 @router.post("/expire", status_code=200, dependencies=[Depends(rate_limit_by_ip)])
-async def expire_tasks(db: AsyncSession = Depends(get_db)):
+async def expire_tasks(
+    agent: Agent = Depends(get_current_agent),
+    db: AsyncSession = Depends(get_db),
+):
     """Expire all overdue tasks. Intended for admin/cron trigger."""
     expired = await expire_overdue_tasks(db)
     return {"expired_count": len(expired), "expired": expired}

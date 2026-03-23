@@ -64,7 +64,7 @@ class TestExpireOverdueTasks:
             await session.commit()
 
         # Trigger expiration
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.status_code == 200
         data = resp.json()
         assert data["expired_count"] == 1
@@ -99,7 +99,7 @@ class TestExpireOverdueTasks:
             await session.commit()
 
         # Trigger expiration
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.status_code == 200
         data = resp.json()
         assert data["expired_count"] == 1
@@ -144,7 +144,7 @@ class TestExpireOverdueTasks:
         task_data = await _create_task_with_deadline(client, pub, deadline_seconds=3600)
 
         # Deadline is 1 hour in the future — should not expire
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.status_code == 200
         data = resp.json()
         assert data["expired_count"] == 0
@@ -168,7 +168,7 @@ class TestExpireOverdueTasks:
         )
         assert resp.status_code == 201
 
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.status_code == 200
         assert resp.json()["expired_count"] == 0
 
@@ -186,11 +186,11 @@ class TestExpireOverdueTasks:
             await session.commit()
 
         # First expiration
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.json()["expired_count"] == 1
 
         # Second expiration — should find nothing
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.json()["expired_count"] == 0
 
     @pytest.mark.asyncio
@@ -209,6 +209,6 @@ class TestExpireOverdueTasks:
                 task.deadline_at = datetime.now(timezone.utc) - timedelta(hours=1)
             await session.commit()
 
-        resp = await client.post("/tasks/expire")
+        resp = await client.post("/tasks/expire", headers=_auth(pub["api_key"]))
         assert resp.status_code == 200
         assert resp.json()["expired_count"] == 3

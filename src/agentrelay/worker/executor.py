@@ -134,7 +134,7 @@ class WorkerExecutor:
         logger.info("Executing claude CLI: %s", cmd[0])
         logger.debug("Prompt length: %d chars", len(prompt))
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         start = loop.time()
 
         try:
