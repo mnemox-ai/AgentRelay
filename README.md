@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/mnemox-ai-agentrelay-badge.png)](https://mseep.ai/app/mnemox-ai-agentrelay)
+
 **English** | [繁體中文](README.zh-TW.md)
 
 # AgentRelay
